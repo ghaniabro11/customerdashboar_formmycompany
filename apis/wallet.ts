@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import FormData from "form-data";
 import logger from "@/lib/logger/logger";
 
-const WALLET_API_BASE_URL = "https://login.mycompanyregistration.uk/api";
+const WALLET_API_BASE_URL = "https://login.formmycompany.uk/api";
 const AUTH_COOKIE = "ldjsldjs82ydkz";
 
 interface WalletBalanceResponse {

@@ -1,6 +1,6 @@
-export const BACKEND_URL = "https://login.mycompanyregistration.uk/api";
+export const BACKEND_URL = "https://login.formmycompany.uk/api";
 export const DOMAIN_URL = process.env.NEXT_PUBLIC_DOMAIN_URL || "";
-export const WEBNAME = "My Company Registration";
+export const WEBNAME = "Form My Company";
 export const FAVICON_URL = `${DOMAIN_URL}/favicon.png`;
 export const DEFAULT_CURRENCY = "GBP";
 export const DEFAULT_CURRENCY_UNIT = "£";

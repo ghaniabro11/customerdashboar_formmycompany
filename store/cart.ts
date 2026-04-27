@@ -17,6 +17,7 @@ export interface CartNotification {
 export interface Service {
   id: string;
   checkoutId?: number;
+  slug?: string;
   title: string;
   type: string;
   price: Money;
@@ -52,6 +53,7 @@ interface StoreState {
   goToStep: (step: Step) => void;
   reset: () => void;
   clearCartNotification: () => void;
+  syncCartFromUrl: (slug: string, type: string) => Promise<void>;
 }
 
 const steps: Step[] = [
@@ -89,11 +91,13 @@ export const useStore = create<StoreState>()(
 
         const isDuplicate = existingServices.some((existing) => {
           const existingSignature = makeSignature(existing);
+        
           return (
             existingSignature.checkoutId === incomingSignature.checkoutId &&
             existingSignature.type === incomingSignature.type &&
             existingSignature.title === incomingSignature.title &&
-            existingSignature.price === incomingSignature.price
+            JSON.stringify(existingSignature.price) ===
+              JSON.stringify(incomingSignature.price)
           );
         });
 
@@ -157,6 +161,43 @@ export const useStore = create<StoreState>()(
         }),
 
       clearCartNotification: () => set({ cartNotification: null }),
+
+      syncCartFromUrl: async (slug, type) => {
+        try {
+          const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/getCartProduct?slug=${slug}&type=${type}`;
+
+          console.log("API URL:", apiUrl);
+          
+          const response = await fetch(apiUrl, {
+            headers: {
+              Accept: "application/json",
+            },
+          });
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(
+              `Failed to fetch product | Status: ${response.status} | ${errorText}`
+            );
+          }
+          
+          const product = await response.json();
+          console.log("PRODUCT:", product);
+      
+          get().addService({
+            checkoutId: product.checkoutId,
+            slug: product.slug,
+            title: product.title,
+            type: product.type,
+            price: Number(product.price),
+            discount: Number(product.discount ?? 0),
+            vat: Number(product.vat ?? 0),
+            meta: product.meta ?? {},
+          });
+        } catch (error) {
+          logger.error("Cart sync error:", error);
+        }
+      },
     }),
     {
       name: "app-store", // cookie name

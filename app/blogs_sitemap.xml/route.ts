@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 const BASE_URL = "https://mycompanyregistration.uk/blogs";
-const API_URL = "https://login.mycompanyregistration.uk/api/sitemap_blogs";
+const API_URL = "https://login.formmycompany.uk/api/sitemap_blogs";
 
 //  Revalidate every 1 hour (important for SEO)
 export const revalidate = 3600;

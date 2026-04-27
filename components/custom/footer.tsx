@@ -44,7 +44,7 @@ const Footer = () => {
           <div>
             <div className="flex gap-2 items-center mb-2 w-fit p-4">
               <Image
-                src={`/logo.png`}
+                src={`/FMC-Logo-White-1.svg`}
                 height={52}
                 width={150}
                 alt="Foundrly Footer Icon"
@@ -115,10 +115,10 @@ const Footer = () => {
 
             <div className="text-white mb-2 space-y-3">
               <a
-                href={`mailto:info@mycompanyregistration.uk`}
+                href={`mailto:info@formmycompany.uk`}
                 className="text-sm font-normal flex gap-1"
               >
-                <Mail size={20} /> info@mycompanyregistration.uk
+                <Mail size={20} /> info@formmycompany.uk
               </a>
 
               {/* Social Icons */}

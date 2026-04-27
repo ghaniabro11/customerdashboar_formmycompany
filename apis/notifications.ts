@@ -39,7 +39,7 @@ interface NotificationDetailResponse {
 export async function getUnreadNotifications(): Promise<UnreadNotificationsResponse | null> {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get(AUTH_COOKIE)?.value;
+    const token = cookieStore.get("auth_token")?.value;
     if (!token) return null;
 
     const response = await axios.get<UnreadNotificationsResponse>(

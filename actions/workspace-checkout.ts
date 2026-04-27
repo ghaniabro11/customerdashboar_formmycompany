@@ -101,7 +101,7 @@ export async function workspaceCheckoutAction(
     });
 
     const response = await axios.post(
-      "https://login.mycompanyregistration.uk/api/workspace-checkout",
+      "https://login.formmycompany.uk/api/workspace-checkout",
       formData,
       {
         headers: {

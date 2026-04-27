@@ -26,24 +26,95 @@ interface NavLinks {
   }>;
 }
 
-const navLinks: any[] = [
-  // { label: "Register A Company", link: "/compare-packages" },
-  { label: "Register A Company", link: "/" },
-  // {
-  //   label: "Service",
-  //   link: "/",
-  //   children: [
-  //     {
-  //       label: "A",
-  //       link: "/",
-  //     },
-  //     { label: "B", link: "/" },
-  //   ],
-  // },
-  { label: "Services", link: "/services" },
-  { label: "Blogs", link: "/blogs" },
-  { label: "Help & Advices", link: "/help-and-advice" },
-  { label: "Workspace", link: "/workspace" },
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "";
+
+const navLinks: NavLinks[] = [
+  { label: "Home", link: `${BASE_URL}/` },
+  { label: "About", link: `${BASE_URL}/about/` },
+
+  {
+    label: "Company Packages",
+    link: `${BASE_URL}/packages/`,
+    children: [
+      {
+        label: "Limited by Guarantee Packages",
+        link: `${BASE_URL}/packages/limited-by-guarantee/`,
+      },
+      {
+        label: "Limited By Guarantee Bespoke",
+        link: `${BASE_URL}/packages/limited-by-guarantee-bespoke/`,
+      },
+      {
+        label: "Digital & Print Package",
+        link: `${BASE_URL}/packages/print/`,
+      },
+      {
+        label: "Digital Plan Package",
+        link: `${BASE_URL}/packages/digital/`,
+      },
+      {
+        label: "Entrepreneurs Choice Package",
+        link: `${BASE_URL}/packages/entrepreneurs-choice/`,
+      },
+      {
+        label: "Fully Inclusive Package",
+        link: `${BASE_URL}/packages/fully-inclusive/`,
+      },
+    ],
+  },
+
+  {
+    label: "Services",
+    link: `${BASE_URL}/services/`,
+    children: [
+      {
+        label: "Interview Rooms",
+        link: `${BASE_URL}/services/interview-rooms/`,
+      },
+      {
+        label: "Conference Rooms",
+        link: `${BASE_URL}/services/conference-rooms/`,
+      },
+      {
+        label: "Call Answering",
+        link: `${BASE_URL}/services/call-answering/`,
+      },
+      {
+        label: "Business Address",
+        link: `${BASE_URL}/services/business-address/`,
+      },
+      {
+        label: "Boardrooms",
+        link: `${BASE_URL}/services/boardrooms/`,
+      },
+    ],
+  },
+
+  {
+    label: "Company Services",
+    link: `${BASE_URL}/company-services/`,
+    children: [
+      {
+        label: "Director Appointment",
+        link: `${BASE_URL}/company-services/director-appointment/`,
+      },
+      {
+        label: "Director Resignation",
+        link: `${BASE_URL}/company-services/director-resignation/`,
+      },
+      {
+        label: "File Confirmation Statement",
+        link: `${BASE_URL}/company-services/file-a-confirmation-statement/`,
+      },
+      {
+        label: "VAT Registration Assistance",
+        link: `${BASE_URL}/company-services/vat-registration-assistance/`,
+      },
+    ],
+  },
+
+  { label: "FAQ", link: `${BASE_URL}/faq/` },
+  { label: "Contact", link: `${BASE_URL}/contact/` },
 ];
 
 const Navbar = () => {
@@ -51,10 +122,17 @@ const Navbar = () => {
   const { data: session, status } = useSession();
 
   return (
-    <nav
-      className={`bg-white shadow-md z-50 transition-all duration-300 w-full sticky top-0`}
-    >
-      <div className="bg-white/95 backdrop-blur-sm px-[5%] flex flex-wrap justify-between items-center  border-b border-gray-100">
+    <nav className="sticky top-0 z-50 w-full shadow-sm">
+      {/* Top bar */}
+      <div className="bg-[#3F9C96] text-white text-sm px-[5%] py-2 flex justify-end">
+        <a
+          href="mailto:info@formmycompany.uk"
+          className="bg-[#20323a] px-4 py-1 rounded-sm font-semibold"
+        >
+          info@formmycompany.uk
+        </a>
+      </div>
+      <div className="bg-white px-[5%] flex items-center justify-between h-[110px]">
         {IsMobileOpen ? (
           <div></div>
         ) : (
@@ -62,7 +140,7 @@ const Navbar = () => {
             <Image
               height={70}
               width={140}
-              src={`/logo.svg`}
+              src={`/logo.webp`}
               alt="My Company Registration Logo"
               className="object-contain "
             />
