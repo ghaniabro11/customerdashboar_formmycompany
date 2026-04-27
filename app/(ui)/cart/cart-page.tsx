@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useStore } from "@/store/cart";
 
@@ -10,7 +10,7 @@ import PaymentStep from "@/components/custom/cart/paymentstep";
 import ConfirmationStep from "@/components/custom/cart/confirmationstep";
 import Stepper from "@/components/custom/cart/stepper";
 
-const CheckoutFlow: React.FC = () => {
+const CheckoutContent: React.FC = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -22,7 +22,6 @@ const CheckoutFlow: React.FC = () => {
     companyName,
     setCompanyName,
     syncCartFromUrl,
-    services,
   } = useStore();
 
   const [hasProcessedUrl, setHasProcessedUrl] = useState(false);
@@ -45,7 +44,7 @@ const CheckoutFlow: React.FC = () => {
 
       setHasProcessedUrl(true);
 
-      //router.replace("/cart");
+      // router.replace("/cart");
     };
 
     handleUrlCart();
@@ -81,10 +80,17 @@ const CheckoutFlow: React.FC = () => {
           onStepClick={goToStep}
           companyName={companyName}
         />
-
         {stepMap[currentStep]}
       </div>
     </div>
+  );
+};
+
+const CheckoutFlow: React.FC = () => {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <CheckoutContent />
+    </Suspense>
   );
 };
 
