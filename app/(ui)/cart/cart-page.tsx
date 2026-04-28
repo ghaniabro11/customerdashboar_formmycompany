@@ -36,6 +36,7 @@ const CheckoutContent: React.FC = () => {
 
       if (company_name) {
         setCompanyName(company_name);
+        goToStep("additional-services");
       }
 
       if (slug && type) {

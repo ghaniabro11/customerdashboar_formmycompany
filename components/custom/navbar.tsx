@@ -150,11 +150,6 @@ const Navbar = () => {
         {/* Nav Links */}
         <ul className="pl-0 my-0 md:flex items-center gap-3 flex-wrap hidden">
           <NavLink navLink={navLinks} />
-          <Link href={`/compare-packages`} aria-label="View Packages">
-            <Button variant={"orange"} className="font-medium">
-              View Packages
-            </Button>
-          </Link>
           {/* Conditionally show Login or Logout */}
           {!session ? (
             <Link href="/auth">

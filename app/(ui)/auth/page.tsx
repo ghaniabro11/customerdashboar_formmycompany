@@ -1,3 +1,5 @@
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { DOMAIN_URL, FAVICON_URL, WEBNAME } from "@/constants/url";
 import AuthPageComponent from "./auth-page";
 import { Suspense } from "react";
@@ -38,7 +40,19 @@ export async function generateMetadata() {
     icons: { icon: FAVICON_URL },
   };
 }
-const AuthPage = () => {
+const AuthPage = async ({
+  searchParams,
+}: {
+  searchParams: Promise<{ callbackUrl?: string }>;
+}) => {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("ldjsldjs82ydkz")?.value;
+  const params = await searchParams;
+
+  if (token) {
+    redirect(params?.callbackUrl || "/dashboard");
+  }
+
   return (
     <Suspense>
       <AuthPageComponent />

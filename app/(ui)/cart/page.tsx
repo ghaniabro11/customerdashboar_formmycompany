@@ -1,3 +1,5 @@
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { DOMAIN_URL, FAVICON_URL, WEBNAME } from "@/constants/url";
 import CheckoutFlow from "./cart-page";
 
@@ -39,7 +41,23 @@ export async function generateMetadata() {
 }
 
 
-const CartPage = () => {
+const CartPage = async ({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string>>;
+}) => {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("ldjsldjs82ydkz")?.value;
+
+  const params = await searchParams;
+  const query = new URLSearchParams(params).toString();
+
+  if (!token) {
+    const callbackUrl = query ? `/cart?${query}` : "/cart";
+
+    redirect(`/auth?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+  }
+
   return <CheckoutFlow />;
 };
 

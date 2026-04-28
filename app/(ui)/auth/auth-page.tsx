@@ -133,7 +133,13 @@ export default function AuthPageComponent() {
       toast.success(getAuthSuccessMessage(isRegister));
 
       if (!isRegister) {
-        router.push("/dashboard");
+        const callbackUrl = searchParams.get("callbackUrl");
+      
+        if (callbackUrl) {
+          router.push(callbackUrl);
+        } else {
+          router.push("/dashboard");
+        }
       } else {
         setIsRegister(false);
         setForm({
