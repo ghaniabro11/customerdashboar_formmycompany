@@ -14,6 +14,8 @@ import { SubmitHandler, useForm } from "react-hook-form";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 
+
+
 interface DocumentFormProps {
   mode: "create" | "update";
   documentData: any; // Adjust the type to match your document data structure
@@ -27,8 +29,11 @@ const DocumentForm = ({
   companyId,
   token,
 }: DocumentFormProps) => {
+
+  const [loading, setLoading] = useState(false); // ✅ MOVE HERE
   const [open, setOpen] = useState(false);
-    const router = useRouter();
+
+  const router = useRouter(); 
   const {
     register,
     handleSubmit,
@@ -54,22 +59,21 @@ const DocumentForm = ({
 
   // Handle form submission
   const onSubmit: SubmitHandler<any> = async (data) => {
+    setLoading(true); // START loader
+  
     const url =
       mode === "create"
         ? `${BACKEND_URL}/customer/companies/documents`
         : `${BACKEND_URL}/customer/companies/documents/${documentData?.id}`;
-
+  
     const formData = new FormData();
     formData.append("company_id", companyId);
     formData.append("document_type", data.document_type);
-    // formData.append("remarks", data.remarks);
+  
     if (data.file?.[0]) {
       formData.append("file", data.file[0]);
     }
-    logger.info(formData.get("company_id"), "formData");
-    logger.info(formData.get("document_type"), "formData");
-    // logger.info(formData.get("remarks"), "formData");
-    logger.info(formData.get("file"), "formData");
+  
     try {
       const res = await axios.post(url, formData, {
         headers: {
@@ -77,12 +81,23 @@ const DocumentForm = ({
           Authorization: `Bearer ${token}`,
         },
       });
+  
       setOpen(false);
       router.refresh();
-      logger.info(res, "res");
-      // onSubmitSuccess(); // Callback on successful submit (optional)
-    } catch (error) {
-      logger.error(error);
+    } catch (error: any) {
+      if (error.response && error.response.status === 422) {
+        const errors = error.response.data.errors;
+  
+        if (errors.file) {
+          alert(errors.file[0]);
+        }
+  
+        console.log(errors);
+      } else {
+        console.error("Unexpected error:", error);
+      }
+    } finally {
+      setLoading(false); // STOP loader (important)
     }
   };
 
@@ -168,10 +183,18 @@ const DocumentForm = ({
 
           <Button
             type="submit"
-            className="w-full col-span-full"
+            className="w-full col-span-full flex items-center justify-center gap-2"
             variant="orange"
+            disabled={loading}
           >
-            {mode === "create" ? "Upload" : "Update"}
+            {loading ? (
+              <>
+                <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                Uploading...
+              </>
+            ) : (
+              mode === "create" ? "Upload" : "Update"
+            )}
           </Button>
         </form>
       </DialogContent>

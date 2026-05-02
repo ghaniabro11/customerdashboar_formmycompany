@@ -45,6 +45,7 @@ if (!STRIPE_PUBLISHABLE_KEY.startsWith("pk_")) {
 const stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY);
 
 const CARD_ELEMENT_OPTIONS = {
+  hidePostalCode: true,
   style: {
     base: {
       fontSize: "16px",
