@@ -84,6 +84,12 @@ body {
   --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
   --sidebar-border: oklch(0.923 0.003 48.717);
   --sidebar-ring: oklch(0.709 0.01 56.259);
+  --footer-bg: #191d24;        /* deep navy */
+  --footer-bg-dark: #252930;
+  --footer-muted: #ffffff;     /* gray text */
+  --footer-heading: #ffffff;
+  --footer-accent: #ff7a59;    /* orange button */
+  --footer-input: #1e293b;     /* input bg */
 }
 
 /* .dark {

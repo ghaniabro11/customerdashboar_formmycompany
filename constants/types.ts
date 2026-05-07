@@ -210,17 +210,46 @@ export interface Order {
 }
 
 export interface Director {
-  id: number;
+  id?: string;
+
+  // Person
   title: string;
   first_name: string;
+  middle_name?: string;
   last_name: string;
-  service_address: string;
-  residential_address: string;
+  email?: string;
+  personal_code?: string;
+
+  // Service Address
+  service_building: string;
+  service_street: string;
+  service_address_3?: string;
+  service_town: string;
+  service_country: string;
+  service_postcode: string;
+
+  // Residential Address
+  residential_building: string;
+  residential_street: string;
+  residential_address_3?: string;
+  residential_town: string;
+  residential_county?: string;
+  residential_postcode: string;
+  residential_country: string;
+
+  // Other
   nationality: string;
-  occupation: any;
+  occupation: string;
+  country_of_residence: string;
+
+  // Existing
   designation?: string;
   company_id?: string;
-  appointment_date: any;
+  appointment_date?: string;
+
+  // Optional old fields
+  service_address?: string;
+  residential_address?: string;
 }
 
 export interface Secretary {

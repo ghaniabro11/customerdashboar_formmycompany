@@ -136,7 +136,7 @@ const Navbar = () => {
         {IsMobileOpen ? (
           <div></div>
         ) : (
-          <Link href={`/`} aria-label="Home Url">
+          <Link href={`https://formmycompany.uk/`} aria-label="Home Url">
             <Image
               height={70}
               width={140}

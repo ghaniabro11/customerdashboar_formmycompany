@@ -1,5 +1,9 @@
 import { DOMAIN_URL, FAVICON_URL, WEBNAME } from "@/constants/url";
 import type { Metadata } from "next";
+import "@fontsource/inter/400.css";
+import "@fontsource/inter/500.css";
+import "@fontsource/inter/600.css";
+import "@fontsource/inter/700.css";
 
 // Default metadata for protected routes
 export const metadata: Metadata = {

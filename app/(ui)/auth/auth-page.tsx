@@ -7,6 +7,12 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+
+import "@fontsource/inter/400.css";
+import "@fontsource/inter/500.css";
+import "@fontsource/inter/600.css";
+import "@fontsource/inter/700.css";
+
 const getAuthErrorMessage = (errorCode: string | null, isRegister: boolean, errorMessage?: string) => {
   // If we have a specific error message from the backend, use it
   if (errorMessage) {
@@ -169,7 +175,7 @@ export default function AuthPageComponent() {
   if (!isMounted) return null;
 
   return (
-    <div className="flex justify-center items-center min-h-dvh bg-gray-50">
+    <div className="flex justify-center items-center min-h-dvh">
       <div className="bg-white p-8 shadow-lg rounded-2xl w-96">
         <h2 className="text-2xl font-bold mb-5 text-center">
           {isRegister ? "Create Account" : "Sign In"}

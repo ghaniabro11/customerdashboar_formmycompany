@@ -46,7 +46,11 @@ const DocumentForm = ({
     { value: "articles_of_association", label: "Articles of Association" },
     { value: "shareholder_agreement", label: "Shareholder Agreement" },
     { value: "director_appointment", label: "Director Appointment" },
-    // { value: "share_certificate", label: "Share Certificate" },
+    { value: "passport", label: "Passport" },
+    { value: "local_id", label: "Local ID" },
+    { value: "driving_license", label: "Driving License" },
+    { value: "permanent_residency_certificate", label: "Permanent Residency Certificate" },
+    { value: "Utility Bill", label: "Utility Bill" },
     // add the rest from backend config
   ];
   // Set form values for update mode

@@ -21,6 +21,8 @@ import {
 } from "@/lib/stripe-payment.service";
 import { checkoutViaWallet, fetchWalletBalance } from "@/apis/wallet";
 
+
+
 // CRITICAL: Validate that we're using a publishable key, not a secret key
 const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 
@@ -40,6 +42,7 @@ if (!STRIPE_PUBLISHABLE_KEY.startsWith("pk_")) {
     "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY must start with 'pk_' (publishable key), not 'sk_' (secret key)"
   );
 }
+
 
 // Initialize Stripe with your publishable key
 const stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY);
@@ -66,6 +69,8 @@ const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
   onNext,
   onBack,
 }) => {
+  const [countrySearch, setCountrySearch] = useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const stripe = useStripe();
   const elements = useElements();
   const { services, companyName, setPaymentStatus, removeService, reset } =
@@ -86,6 +91,14 @@ const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
   const taxRate = 0;
   const cartLines: CartLine[] = services.map((s) => ({ ...s, qty: 1 }));
   const totals = calc(cartLines, taxRate);
+
+  const sortedCountries = [...coutries].sort((a, b) =>
+    a.name.localeCompare(b.name)
+  );
+  
+  const filteredCountries = sortedCountries.filter((c) =>
+    c.name.toLowerCase().includes(countrySearch.toLowerCase())
+  );
 
   // Fetch wallet balance on component mount
   useEffect(() => {
@@ -111,6 +124,29 @@ const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
     };
 
     fetchBalance();
+  }, []);
+
+
+  useEffect(() => {
+    const handleClickOutside = (e: any) => {
+      if (!e.target.closest(".country-dropdown")) {
+        setIsDropdownOpen(false);
+      }
+    };
+  
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e: any) => {
+      if (!e.target.closest(".country-dropdown")) {
+        setIsDropdownOpen(false);
+      }
+    };
+  
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
   const handleSubmit = async () => {
@@ -523,23 +559,50 @@ const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
                   />
                 </div>
 
-                <div>
+                <div className="relative country-dropdown">
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Country
                   </label>
-                  <select
-                    name=""
-                    id=""
+
+                  <input
+                    type="text"
+                    value={
+                      countrySearch ||
+                      sortedCountries.find((c) => c.id === country)?.name ||
+                      ""
+                    }
+                    onChange={(e) => {
+                      setCountrySearch(e.target.value);
+                      setIsDropdownOpen(true);
+                    }}
+                    onFocus={() => setIsDropdownOpen(true)}
+                    placeholder="Search country..."
                     className="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                    value={country}
-                    onChange={(e) => setCountry(e.target.value)}
-                  >
-                    {coutries.map((country) => (
-                      <option value={country.id} key={country.name}>
-                        {country.name}
-                      </option>
-                    ))}
-                  </select>
+                  />
+
+                  {isDropdownOpen && (
+                    <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                      {filteredCountries.length > 0 ? (
+                        filteredCountries.map((c) => (
+                          <div
+                            key={c.id}
+                            onClick={() => {
+                              setCountry(c.id);
+                              setCountrySearch(c.name);
+                              setIsDropdownOpen(false);
+                            }}
+                            className="cursor-pointer px-4 py-2 hover:bg-sky-100 text-sm"
+                          >
+                            {c.name}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-4 py-2 text-sm text-slate-500">
+                          No country found
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
