@@ -257,7 +257,7 @@ const CompanyDetailComponent = ({
           ]}
           total={company?.directors?.length}
           pagination={false}
-          rowKey={(row: Director) => row?.id}
+          rowKey={(row: Director) => row?.id || ""}
         />
       </div>
       <div className="my-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
