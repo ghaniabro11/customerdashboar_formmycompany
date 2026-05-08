@@ -1,3 +1,4 @@
+
 "use client";
 import React, { useEffect, useState } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
@@ -38,13 +39,69 @@ const DirectorForm = ({
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    if (mode === "update" && directorData) {
-      Object.entries(directorData).forEach(([key, value]) => {
-        setValue(key as keyof Director, value as never);
-      });
-    }
-  }, [mode, directorData, setValue]);
+useEffect(() => {
+  if (mode === "update" && directorData) {
+    // Person
+    setValue("title", directorData.title || "");
+    setValue("first_name", directorData.first_name || "");
+    setValue("middle_name", directorData.middle_name || "");
+    setValue("last_name", directorData.last_name || "");
+    setValue("email", directorData.email || "");
+    setValue("personal_code", directorData.personal_code || "");
+
+    // Service Address
+    setValue("service_building", directorData.service_building || "");
+    setValue("service_street", directorData.service_street || "");
+    setValue("service_address_3", directorData.service_address_3 || "");
+    setValue("service_town", directorData.service_town || "");
+    setValue("service_country", directorData.service_country || "");
+    setValue("service_postcode", directorData.service_postcode || "");
+
+    // Residential Address
+    setValue(
+      "residential_building",
+      directorData.residential_building || ""
+    );
+
+    setValue(
+      "residential_street",
+      directorData.residential_street || ""
+    );
+
+    setValue(
+      "residential_address_3",
+      directorData.residential_address_3 || ""
+    );
+
+    setValue(
+      "residential_town",
+      directorData.residential_town || ""
+    );
+
+    setValue(
+      "residential_county",
+      directorData.residential_county || ""
+    );
+
+    setValue(
+      "residential_postcode",
+      directorData.residential_postcode || ""
+    );
+
+    setValue(
+      "residential_country",
+      directorData.residential_country || ""
+    );
+
+    // Other
+    setValue("nationality", directorData.nationality || "");
+    setValue("occupation", directorData.occupation || "");
+    setValue(
+      "country_of_residence",
+      directorData.country_of_residence || ""
+    );
+  }
+}, [mode, directorData, setValue]);
 
   const onSubmit: SubmitHandler<Director> = async (data) => {
     const url =
