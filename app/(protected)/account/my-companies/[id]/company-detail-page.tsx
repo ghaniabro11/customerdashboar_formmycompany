@@ -244,7 +244,7 @@ const CompanyDetailComponent = ({
                   <Button
                     variant="destructive"
                     onClick={async () =>
-                      await deleteDirector(row?.id.toString())
+                      await deleteDirector(row?.id?.toString() || "")
                     }
                     className="text-xs"
                     size={"sm"}
@@ -302,7 +302,7 @@ const CompanyDetailComponent = ({
                   <Button
                     variant="destructive"
                     onClick={async () =>
-                      await deleteMemberAtIncorporation(row?.id.toString())
+                      await deleteMemberAtIncorporation(row?.id?.toString() || "")
                     }
                     className="text-xs"
                     size={"sm"}
@@ -363,7 +363,7 @@ const CompanyDetailComponent = ({
                   <Button
                     variant="destructive"
                     onClick={async () =>
-                      await deleteDocument(row?.id.toString())
+                      await deleteDocument(row?.id?.toString() || "")
                     }
                     className="text-xs"
                     size={"sm"}
@@ -451,7 +451,7 @@ const CompanyDetailComponent = ({
                     variant="destructive"
                     onClick={async () =>
                       await deletePeopleWithSignificantControl(
-                        row?.id.toString()
+                        row?.id?.toString() || ""
                       )
                     }
                     className="text-xs"
@@ -523,7 +523,7 @@ const CompanyDetailComponent = ({
                   <Button
                     variant="destructive"
                     onClick={async () =>
-                      await deleteSecretary(row?.id.toString())
+                      await deleteSecretary(row?.id?.toString() || "")
                     }
                     className="text-xs"
                     size={"sm"}
