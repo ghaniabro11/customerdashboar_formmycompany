@@ -4,6 +4,7 @@ import CompanyUpdateForm from "@/components/custom/company-update-form";
 import DataTable from "@/components/custom/datatable";
 import DirectorForm from "@/components/custom/director-form";
 import DocumentForm from "@/components/custom/documentform";
+import ProofOfResidencySection from "@/components/custom/proof-of-residency-section";
 import { EmailDetailsDialog } from "@/components/custom/email-body";
 import MemberForm from "@/components/custom/memberform";
 import PSCForm from "@/components/custom/pscform";
@@ -66,6 +67,32 @@ const CompanyDetailComponent = ({
     : company?.order
     ? [company?.order]
     : [];
+
+
+    const deleteProofOfResidency = async (id: string) => {
+      try {
+        const response = await axiosInstance.get(
+          `/customer/companies/proof-of-residency-delete/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+    
+        router.refresh();
+    
+        toast.success(
+          response.data.message || "Document deleted successfully"
+        );
+      } catch (error: any) {
+        logger.error(error, "Failed to delete document");
+    
+        logger.error(
+          error.response.data.message || "Failed to delete document"
+        );
+      }
+    };  
 
   const deleteDocument = async (id: string) => {
     try {
@@ -380,39 +407,14 @@ const CompanyDetailComponent = ({
         />
       </div>
 
-      <div className="my-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center justify-between my-2 gap-5">
-          <h2 className="mb-4 text-xl font-semibold text-gray-800">
-            Documents by Admin
-          </h2>
-        </div>
+      <ProofOfResidencySection
+        data={company?.proof_of_residency_documents || []}
+        companyId={id as string}
+        token={token}
+        deleteProofOfResidency={deleteProofOfResidency}
+      />
 
-        <DataTable
-          data={documentsByAdmin}
-          columns={[
-            {
-              header: "Document Name",
-              accessor: (row: DocumentByAdmin) => row?.file_type || "N/A",
-            },
-            {
-              header: "File",
-              accessor: (row: DocumentByAdmin) => (
-                <a
-                  href={row?.file_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-500 hover:underline"
-                >
-                  View File
-                </a>
-              ),
-            },
-          ]}
-          total={documentsByAdmin?.length || 0}
-          pagination={false}
-          rowKey={(row: DocumentByAdmin) => row?.id}
-        />
-      </div>
+
       <div className="my-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between my-2 gap-5">
           <h2 className="mb-4 text-xl font-semibold text-gray-800">
@@ -614,6 +616,40 @@ const CompanyDetailComponent = ({
           total={company?.order?.length}
           pagination={false}
           rowKey={(row: CompanyInboxEmail) => row?.id}
+        />
+      </div>
+
+      <div className="my-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between my-2 gap-5">
+          <h2 className="mb-4 text-xl font-semibold text-gray-800">
+            Documents by Admin
+          </h2>
+        </div>
+
+        <DataTable
+          data={documentsByAdmin}
+          columns={[
+            {
+              header: "Document Name",
+              accessor: (row: DocumentByAdmin) => row?.file_type || "N/A",
+            },
+            {
+              header: "File",
+              accessor: (row: DocumentByAdmin) => (
+                <a
+                  href={row?.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:underline"
+                >
+                  View File
+                </a>
+              ),
+            },
+          ]}
+          total={documentsByAdmin?.length || 0}
+          pagination={false}
+          rowKey={(row: DocumentByAdmin) => row?.id}
         />
       </div>
       <EmailDetailsDialog

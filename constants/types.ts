@@ -330,3 +330,19 @@ interface Workspace {
   slug: string;
   meta_description: string;
 }
+
+
+export interface ProofOfResidency {
+  id?: number;
+  company_id?: number;
+
+  document_title: string;
+
+  file?: File | null;
+
+  file_path?: string;
+  file_url?: string;
+
+  created_at?: string;
+  updated_at?: string;
+}
