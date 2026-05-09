@@ -201,11 +201,7 @@ export interface CompanyDetail {
   members: Member[];
   pscs: Psc[];
   documents: DirectorDocument[];
-  proof_of_residency_documents?: {
-    id: number;
-    document_title: string;
-    file_path: string;
-  }[];
+  proof_of_residency_documents: ProofOfResidency[];
 }
 
 export interface Order {
