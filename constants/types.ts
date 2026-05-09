@@ -334,16 +334,8 @@ interface Workspace {
 
 
 export interface ProofOfResidency {
-  id?: number;
-  company_id?: number;
-
+  id: number;
   document_title: string;
-
-  file?: File | null;
-
-  file_path?: string;
+  file_path: string;
   file_url?: string;
-
-  created_at?: string;
-  updated_at?: string;
 }

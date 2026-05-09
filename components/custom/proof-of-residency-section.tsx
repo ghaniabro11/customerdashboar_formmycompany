@@ -3,12 +3,8 @@
 import DataTable from "@/components/custom/datatable";
 import ProofOfResidencyForm from "@/components/custom/proof-of-residency-form";
 import { Button } from "@/components/ui/button";
+import { ProofOfResidency } from "@/constants/types";
 
-interface ProofOfResidency {
-  id: number;
-  document_title: string;
-  file_url: string;
-}
 
 interface Props {
   data: ProofOfResidency[];
