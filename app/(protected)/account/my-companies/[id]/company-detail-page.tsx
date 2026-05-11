@@ -72,7 +72,7 @@ const CompanyDetailComponent = ({
     const deleteProofOfResidency = async (id: string) => {
       try {
         const response = await axiosInstance.get(
-          `/customer/companies/proof-of-residency-delete/${id}`,
+          `/customer/companies/proof-of-residency/${id}/delete`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

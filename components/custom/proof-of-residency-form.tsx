@@ -18,6 +18,7 @@ import {
 
 interface ProofOfResidency {
   id?: number;
+  document_group: string;
   document_title?: string;
   file_url?: string;
 }
@@ -37,9 +38,29 @@ const ProofOfResidencyForm = ({
 }: Props) => {
   const [open, setOpen] = useState(false);
 
-  const [document_title, setTitle] = useState(
-    proofData?.document_title || ""
-  );
+const GROUP_A_DOCUMENTS = [
+  "Bank or Building Society Statement",
+  "Water, Gas, or Electricity Bill",
+  "Internet, Cable, or Landline Bill",
+  "Mortgage Statement",
+];
+
+const GROUP_B_DOCUMENTS = [
+  "Credit Card Statement",
+  "TV Licence Fee",
+  "Government Tax Notice",
+  "Insurance Policy (Home, Life, or Medical)",
+  "Certificate of Residence",
+  "Council Tax or Municipality Bill",
+];
+
+const [groupType, setGroupType] = useState(
+  proofData?.document_group || "A"
+);
+
+const [document_title, setTitle] = useState(
+  proofData?.document_title || ""
+);
 
   const [files, setFiles] = useState<FileList | null>(null);
 
@@ -63,6 +84,7 @@ const ProofOfResidencyForm = ({
       const formData = new FormData();
 
       formData.append("company_id", companyId);
+      formData.append("document_group", groupType);
       formData.append("document_title", document_title);
 
       if (files) {
@@ -145,17 +167,51 @@ const ProofOfResidencyForm = ({
         >
           <div>
             <label className="text-sm font-medium">
-              Title
+              Group Type
             </label>
 
-            <Input
+            <select
+              value={groupType}
+              onChange={(e) => {
+                setGroupType(e.target.value);
+                setTitle("");
+              }}
+              className="w-full rounded-md border border-gray-300 p-2"
+              required
+            >
+              <option value="A">Group A</option>
+              <option value="B">Group B</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium">
+              Document Type
+            </label>
+
+            <select
               value={document_title}
               onChange={(e) =>
                 setTitle(e.target.value)
               }
-              placeholder="Enter title"
+              className="w-full rounded-md border border-gray-300 p-2"
               required
-            />
+            >
+              <option value="">
+                Select Document Type
+              </option>
+
+              {(groupType === "A"
+                ? GROUP_A_DOCUMENTS
+                : GROUP_B_DOCUMENTS
+              ).map((doc) => (
+                <option
+                  key={doc}
+                  value={doc}
+                >
+                  {doc}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

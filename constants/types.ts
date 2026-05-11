@@ -335,6 +335,7 @@ interface Workspace {
 
 export interface ProofOfResidency {
   id: number;
+  document_group: "A" | "B";
   document_title: string;
   file_path: string;
   file_url?: string;
