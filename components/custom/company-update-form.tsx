@@ -141,6 +141,7 @@ const CompanyUpdateForm = ({
             {...register("company_type", {
               required: "Company Type is required",
             })}
+            disabled
             type="text"
             placeholder="Company Type"
           />

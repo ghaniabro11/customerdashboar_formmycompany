@@ -41,11 +41,11 @@ const DocumentForm = ({
     formState: { errors },
   } = useForm<any>(); // Adjust form type to match your data structure
   const DOCUMENT_TYPES = [
-    { value: "incorporation_certificate", label: "Incorporation Certificate" },
-    { value: "memorandum_of_association", label: "Memorandum of Association" },
-    { value: "articles_of_association", label: "Articles of Association" },
-    { value: "shareholder_agreement", label: "Shareholder Agreement" },
-    { value: "director_appointment", label: "Director Appointment" },
+    // { value: "incorporation_certificate", label: "Incorporation Certificate" },
+    // { value: "memorandum_of_association", label: "Memorandum of Association" },
+    // { value: "articles_of_association", label: "Articles of Association" },
+    // { value: "shareholder_agreement", label: "Shareholder Agreement" },
+    // { value: "director_appointment", label: "Director Appointment" },
     { value: "passport", label: "Passport" },
     { value: "local_id", label: "Local ID" },
     { value: "driving_license", label: "Driving License" },

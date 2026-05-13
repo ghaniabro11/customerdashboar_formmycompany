@@ -62,12 +62,85 @@ const CompanyDetailComponent = ({
   };
 
   const router = useRouter();
+  const isDraft = company?.status === "draft";
   const orders: Order[] = Array.isArray(company?.order)
     ? company?.order
     : company?.order
     ? [company?.order]
     : [];
 
+
+    const isDirectorsComplete =
+      Array.isArray(company?.directors) &&
+      company.directors.length > 0;
+
+    const isMembersComplete =
+      Array.isArray(company?.members) &&
+      company.members.length > 0;
+
+    const isDocumentsComplete =
+      Array.isArray(company?.documents) &&
+      company.documents.length > 0;
+
+    const isProofComplete =
+      Array.isArray(company?.proof_of_residency_documents) &&
+      company.proof_of_residency_documents.length >= 2;
+
+    const isPSCComplete =
+      Array.isArray(company?.pscs) &&
+      company.pscs.length > 0;
+
+    const isSecretariesComplete =
+      Array.isArray(company?.secretaries) &&
+      company.secretaries.length > 0;
+
+    const isAllSectionsCompleted =
+      isDirectorsComplete &&
+      isMembersComplete &&
+      isDocumentsComplete &&
+      isProofComplete &&
+      isPSCComplete &&
+      isSecretariesComplete;
+
+
+    const [submitLoading, setSubmitLoading] = useState(false);
+
+    const handleFinalSubmit = async () => {
+        const confirmed = window.confirm(
+          "Are you sure you want to submit all information?\n\nOnce submitted, you will not be able to edit the information."
+        );
+      
+        if (!confirmed) return;
+      
+        try {
+          setSubmitLoading(true);
+      
+          const response = await axiosInstance.get(
+            `/customer/company_submit/${id}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+      
+          toast.success(
+            response.data.message ||
+              "Company submitted successfully"
+          );
+      
+          router.refresh();
+        } catch (error: any) {
+          console.log(error);
+      
+          toast.error(
+            error?.response?.data?.message ||
+              "Submission failed"
+          );
+        } finally {
+          setSubmitLoading(false);
+        }
+    };  
 
     const deleteProofOfResidency = async (id: string) => {
       try {
@@ -183,7 +256,9 @@ const CompanyDetailComponent = ({
     <main>
       <div className="flex items-center justify-between gap-6">
         <h1>{company?.company_name}</h1>
-        <CompanyUpdateForm token={token} company={company} />
+        {company?.status !== "submitted" && (
+         <CompanyUpdateForm token={token} company={company} />
+        )}
       </div>
 
       <div className="my-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -238,12 +313,14 @@ const CompanyDetailComponent = ({
           <h2 className="mb-4 text-xl font-semibold text-gray-800">
             Directors
           </h2>
+          {company?.status !== "submitted" && (
           <DirectorForm
             mode="create"
             directorData={null}
             companyId={id as string}
             token={token}
           />
+          )}
         </div>
 
         <DataTable
@@ -262,14 +339,24 @@ const CompanyDetailComponent = ({
               header: "Action",
               accessor: (row) => (
                 <div className="flex items-center gap-2">
-                  <DirectorForm
-                    mode="update"
-                    directorData={row as Director}
-                    companyId={id as string}
-                    token={token}
-                  />
+                  <div
+                    className={
+                      !isDraft
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
+                  >
+                    <DirectorForm
+                      mode="update"
+                      directorData={row as Director}
+                      companyId={id as string}
+                      token={token}
+                    />
+                  </div>
+
                   <Button
                     variant="destructive"
+                    disabled={!isDraft}
                     onClick={async () =>
                       await deleteDirector(row?.id?.toString() || "")
                     }
@@ -292,12 +379,14 @@ const CompanyDetailComponent = ({
           <h2 className="mb-4 text-xl font-semibold text-gray-800">
             Company Members
           </h2>
+          {company?.status !== "submitted" && (
           <MemberForm
             mode="create"
             memberData={null}
             companyId={id as string}
             token={token}
           />
+          )}
         </div>
 
         <DataTable
@@ -320,14 +409,23 @@ const CompanyDetailComponent = ({
               header: "Action",
               accessor: (row) => (
                 <div className="flex items-center gap-2">
+                  <div
+                      className={
+                        !isDraft
+                          ? "pointer-events-none opacity-50"
+                          : ""
+                      }
+                    >
                   <MemberForm
                     mode="update"
                     memberData={row as Member}
                     companyId={id as string}
                     token={token}
                   />
+                  </div>
                   <Button
                     variant="destructive"
+                    disabled={!isDraft}
                     onClick={async () =>
                       await deleteMemberAtIncorporation(row?.id?.toString() || "")
                     }
@@ -350,12 +448,14 @@ const CompanyDetailComponent = ({
           <h2 className="mb-4 text-xl font-semibold text-gray-800">
             Company Documents
           </h2>
+          {company?.status !== "submitted" && (
           <DocumentForm
             mode="create"
             documentData={null}
             companyId={id as string}
             token={token}
           />
+          )}
         </div>
 
         <DataTable
@@ -381,14 +481,23 @@ const CompanyDetailComponent = ({
               header: "Action",
               accessor: (row) => (
                 <div className="flex items-center gap-2">
-                  <DocumentForm
-                    mode="update"
-                    documentData={row as DirectorDocument}
-                    companyId={id as string}
-                    token={token}
-                  />
+                  <div
+                      className={
+                        !isDraft
+                          ? "pointer-events-none opacity-50"
+                          : ""
+                      }
+                    >
+                    <DocumentForm
+                      mode="update"
+                      documentData={row as DirectorDocument}
+                      companyId={id as string}
+                      token={token}
+                    />
+                  </div>
                   <Button
                     variant="destructive"
+                    disabled={!isDraft}
                     onClick={async () =>
                       await deleteDocument(row?.id?.toString() || "")
                     }
@@ -406,13 +515,14 @@ const CompanyDetailComponent = ({
           rowKey={(row: DirectorDocument) => row?.id}
         />
       </div>
-
-      <ProofOfResidencySection
-        data={company?.proof_of_residency_documents || []}
-        companyId={id as string}
-        token={token}
-        deleteProofOfResidency={deleteProofOfResidency}
-      />
+      {company?.status !== "submitted" && (
+        <ProofOfResidencySection
+          data={company?.proof_of_residency_documents || []}
+          companyId={id as string}
+          token={token}
+          deleteProofOfResidency={deleteProofOfResidency}
+        />
+      )}
 
 
       <div className="my-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -420,12 +530,14 @@ const CompanyDetailComponent = ({
           <h2 className="mb-4 text-xl font-semibold text-gray-800">
             People with Significant Control (PSC){" "}
           </h2>
+          {company?.status !== "submitted" && (
           <PSCForm
             mode="create"
             pscData={null}
             companyId={id as string}
             token={token}
           />
+          )}
         </div>
 
         <DataTable
@@ -443,14 +555,23 @@ const CompanyDetailComponent = ({
               header: "Action",
               accessor: (row) => (
                 <div className="flex items-center gap-2">
+                  <div
+                      className={
+                        !isDraft
+                          ? "pointer-events-none opacity-50"
+                          : ""
+                      }
+                    >
                   <PSCForm
                     mode="update"
                     pscData={row as Psc}
                     companyId={id as string}
                     token={token}
                   />
+                  </div>
                   <Button
                     variant="destructive"
+                    disabled={!isDraft}
                     onClick={async () =>
                       await deletePeopleWithSignificantControl(
                         row?.id?.toString() || ""
@@ -476,12 +597,14 @@ const CompanyDetailComponent = ({
           <h2 className="mb-4 text-xl font-semibold text-gray-800">
             Secretaries
           </h2>
+          {company?.status !== "submitted" && (
           <SecretaryForm
             companyId={id as string}
             mode="create"
             secretaryData={null}
             token={token}
           />
+          )}
         </div>
 
         <DataTable
@@ -516,14 +639,23 @@ const CompanyDetailComponent = ({
               header: "Action",
               accessor: (row) => (
                 <div className="flex items-center gap-2">
+                  <div
+                      className={
+                        !isDraft
+                          ? "pointer-events-none opacity-50"
+                          : ""
+                      }
+                    >
                   <SecretaryForm
                     mode="update"
                     secretaryData={row as Secretary}
                     companyId={id as string}
                     token={token}
                   />
+                  </div>
                   <Button
                     variant="destructive"
+                    disabled={!isDraft}
                     onClick={async () =>
                       await deleteSecretary(row?.id?.toString() || "")
                     }
@@ -652,6 +784,75 @@ const CompanyDetailComponent = ({
           rowKey={(row: DocumentByAdmin) => row?.id}
         />
       </div>
+
+      {company?.status !== "submitted" && (
+        <div className="my-8 rounded-2xl border border-orange-200 bg-orange-50 p-6 shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-orange-700">
+                Final Submission
+              </h2>
+
+              <p className="mt-2 text-sm text-gray-700">
+                Please ensure all sections are completed before
+                submitting your company information.
+              </p>
+
+              {!isAllSectionsCompleted && (
+                <ul className="mt-4 list-disc pl-5 text-sm text-red-600 space-y-1">
+                  {!isDirectorsComplete && (
+                    <li>Add at least one Director</li>
+                  )}
+
+                  {!isMembersComplete && (
+                    <li>Add at least one Member</li>
+                  )}
+
+                  {!isDocumentsComplete && (
+                    <li>Upload Company Documents</li>
+                  )}
+
+                  {!isProofComplete && (
+                    <li>
+                      Upload at least 2 Proof Of Residency
+                      Documents
+                    </li>
+                  )}
+
+                  {!isPSCComplete && (
+                    <li>
+                      Add People with Significant Control
+                    </li>
+                  )}
+
+                  {!isSecretariesComplete && (
+                    <li>Add at least one Secretary</li>
+                  )}
+                </ul>
+              )}
+            </div>
+
+            <Button
+              variant="orange"
+              disabled={!isAllSectionsCompleted || submitLoading}
+              onClick={handleFinalSubmit}
+              className="min-w-[260px] h-12 text-base font-semibold"
+            >
+              {submitLoading
+                ? "Submitting..."
+                : "Submit All Information To Proceed"}
+            </Button>
+          </div>
+
+          {isAllSectionsCompleted && (
+            <div className="mt-4 rounded-lg border border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-800">
+              ⚠ Once you submit all information, you will
+              no longer be able to edit the company details.
+            </div>
+          )}
+        </div>
+      )}    
+
       <EmailDetailsDialog
         token={token}
         emailId={selectedId}
