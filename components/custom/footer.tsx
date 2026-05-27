@@ -15,7 +15,7 @@ const Footer = () => {
   
 
   {/* MAIN */}
-  <div className="max-w-7xl mx-auto px-6 pt-40 pb-40  grid md:grid-cols-4 gap-12">
+  <div className="max-w-7xl mx-auto px-6 pt-24 pb-20 grid md:grid-cols-5 gap-10">
     
     {/* LOGO */}
     <div>
@@ -70,103 +70,113 @@ const Footer = () => {
       </div>
     </div>
 
-    {/* SUPPORT */}
+    {/* COMPANY FORMATION */}
     <div>
       <h3 className="text-base font-semibold tracking-wide pb-3 mb-4 border-b border-[#1e293b]">
-        SUPPORT
+      COMPANY FORMATION
       </h3>
       <ul className="space-y-3 text-base text-[var(--footer-muted)]">
-        <li>
-          <a
-            href="https://formmycompany.uk/about/"
-            target="_blank"
-            rel="noopener noreferrer"
-            >
-              About Form My Company
-            </a>
-          </li>
-        <li>
-          <a
-            href="https://formmycompany.uk/faq/"
-            target="_blank"
-            rel="noopener noreferrer"
-            >
-            FAQ
-          </a>  
+      <li>
+          <Link href="https://formmycompany.uk/packages/private-limited-ltd-company/">
+            Private Limited Company
+          </Link>
         </li>
+
         <li>
-          <a
-            href="https://formmycompany.uk/blogs/"
-            target="_blank"
-            rel="noopener noreferrer"
-            >
-              Blogs
-          </a>
+          <Link href="https://formmycompany.uk/packages/non-uk-residents/">
+            Non-UK Resident Company
+          </Link>
         </li>
+
         <li>
-          <a
-            href="https://formmycompany.uk/research-insights/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-          Research Insights
-          </a>
+          <Link href="https://formmycompany.uk/packages/limited-by-guarantee/">
+            Limited by Guarantee
+          </Link>
         </li>
+
         <li>
-         <a
-            href="https://formmycompany.uk/contact/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-          Contact Us
-        </a>  
+          <Link href="https://formmycompany.uk/packages/public-limited-company/">
+            Public Limited Company
+          </Link>
         </li>
       </ul>
     </div>
 
-    {/* COMPANY */}
+    {/* BUSINESS SERVICES */}
     <div>
       <h3 className="text-base font-semibold tracking-wide pb-3 mb-4 border-b border-[#1e293b]">
-        COMPANY FORMATION
+       BUSINESS SERVICES
       </h3>
       
       <ul className="space-y-3 text-base text-[var(--footer-muted)]">
         <li>
-          <a
-              href="https://formmycompany.uk/packages/private-limited-ltd-company/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-            Private Limited Company
-          </a>  
-        </li>
-        <li>
-          <a
-              href="https://formmycompany.uk/packages/non-uk-residents/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-            Non-UK Resident Company
-          </a>  
-        </li>
-        <li>
-          <a
-              href="https://formmycompany.uk/packages/limited-by-guarantee/"
-              target="_blank"
-              rel="noopener noreferrer"
-          >
-          Limited by Guarantee
-          </a>
-        </li>
-        <li>
-          <a
-              href="https://formmycompany.uk/packages/public-limited-company/"
-              target="_blank"
-              rel="noopener noreferrer"
-          >
-          Public Limited Company
-          </a>
-        </li>
+        <Link href="https://formmycompany.uk/services/business-address/">
+          Registered Office Address
+        </Link>
+      </li>
+
+      <li>
+        <Link href="https://formmycompany.uk/services/virtual-offices/">
+          Virtual Office Services
+        </Link>
+      </li>
+
+      <li>
+        <Link href="https://formmycompany.uk/services/meeting-rooms/">
+          Meeting Room Hire
+        </Link>
+      </li>
+
+      <li>
+        <Link href="https://formmycompany.uk/company-services/vat-registration-assistance/">
+          VAT Registration Service
+        </Link>
+      </li>
+      </ul>
+    </div>
+
+    {/* RESOURCES & TRUST */}
+    <div>
+      <h3 className="text-base font-semibold tracking-wide pb-3 mb-4 border-b border-[#1e293b]">
+        RESOURCES & TRUST
+      </h3>
+      
+      <ul className="space-y-3 text-base text-[var(--footer-muted)]">
+      <li>
+        <Link href="https://formmycompany.uk/about/">
+          About Form My Company
+        </Link>
+      </li>
+
+      <li>
+        <Link href="https://formmycompany.uk/contact/">
+          Contact Us
+        </Link>
+      </li>
+
+      <li>
+        <Link href="https://formmycompany.uk/faq/">
+          FAQs
+        </Link>
+      </li>
+
+      <li>
+        <Link href="https://formmycompany.uk/blogs/">
+          Latest Business Insights
+        </Link>
+      </li>
+
+      <li>
+        <Link href="https://formmycompany.uk/research-insights/">
+          Research
+        </Link>
+      </li>
+
+      <li>
+        <Link href="https://formmycompany.uk/news/">
+          News
+        </Link>
+      </li>
       </ul>
     </div>
 

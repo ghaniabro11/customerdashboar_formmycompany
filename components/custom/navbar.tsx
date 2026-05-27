@@ -60,9 +60,46 @@ const navLinks: NavLinks[] = [
         label: "Fully Inclusive Package",
         link: `${BASE_URL}/packages/fully-inclusive/`,
       },
+      {
+        label: "Privacy Package",
+        link: `${BASE_URL}/packages/privacy/`,
+      },
+      {
+        label: "Public Limited Company",
+        link: `${BASE_URL}/packages/public-limited-company/`,
+      },
+      {
+        label: "Limited Liability Partnership",
+        link: `${BASE_URL}/packages/limited-liability-partnership-llp/`,
+      },
+      {
+        label: "Rights To Manage Company",
+        link: `${BASE_URL}/packages/rights-to-manage-company/`,
+      },
+      {
+        label: "UK Charity Company",
+        link: `${BASE_URL}/packages/uk-charity-company/`,
+      },
+      {
+        label: "Private Limited (Ltd) Company",
+        link: `${BASE_URL}/packages/private-limited-ltd-company/`,
+      },
     ],
   },
-
+  {
+    label: "Non-Residents UK Company",
+    link: `${BASE_URL}/packages/non-uk-residents/`,
+    children: [
+      {
+        label: "For Bangladesh", 
+        link: `${BASE_URL}/packages/non-uk-residents/bangladesh`,
+      },
+      {
+        label: "For China",
+        link: `${BASE_URL}/non-uk-residents/china/`,
+      }
+    ],
+  },
   {
     label: "Services",
     link: `${BASE_URL}/services/`,
@@ -87,6 +124,22 @@ const navLinks: NavLinks[] = [
         label: "Boardrooms",
         link: `${BASE_URL}/services/boardrooms/`,
       },
+      {
+        label: "Virtual Offices",
+        link: `${BASE_URL}/services/virtual-offices/`,
+      },
+      {
+        label: "Training Rooms",
+        link: `${BASE_URL}/services/training-rooms/`,
+      },
+      {
+        label: "Serviced Offices",
+        link: `${BASE_URL}/services/serviced-offices/`,
+      },
+      {
+        label: "Meeting Room",
+        link: `${BASE_URL}/services/meeting-rooms/`,
+      },
     ],
   },
 
@@ -103,12 +156,56 @@ const navLinks: NavLinks[] = [
         link: `${BASE_URL}/company-services/director-resignation/`,
       },
       {
-        label: "File Confirmation Statement",
+        label: "Director Appointment & Resignation Bundle",
+        link: `${BASE_URL}/company-services/director-appointment-resignation/`,
+      },
+      {
+        label: "File a Confirmation Statement",
         link: `${BASE_URL}/company-services/file-a-confirmation-statement/`,
+      },
+      {
+        label: "File Accounts for Dormant Companies",
+        link: `${BASE_URL}/company-services/file-accounts-for-dormant-companies/`,
+      },
+      {
+        label: "Identity Verification Service: Director or PSC",
+        link: `${BASE_URL}/company-services/identity-verification-service-director-or-psc/`,
+      },
+      {
+        label: "PAYE Registration Assistance",
+        link: `${BASE_URL}/company-services/paye-registration-assistance/`,
       },
       {
         label: "VAT Registration Assistance",
         link: `${BASE_URL}/company-services/vat-registration-assistance/`,
+      },
+      {
+        label: "Company Secretarial",
+        link: `${BASE_URL}/company-services/company-secretarial-service/`,
+      },
+      {
+        label: "Apostilled Documents",
+        link: `${BASE_URL}/company-services/apostilled-documents/`,
+      },
+      {
+        label: "Certificate of Good Standing",
+        link: `${BASE_URL}/company-services/certificate-of-good-standing/`,
+      },
+      {
+        label: "Supplementary Company Documents",
+        link: `${BASE_URL}/company-services/supplementary-company-documents/`,
+      },
+      {
+        label: "Company Pack",
+        link: `${BASE_URL}/company-services/company-pack/`,
+      },
+      {
+        label: "PSC Register",
+        link: `${BASE_URL}/company-services/psc-register/`,
+      },
+      {
+        label: "Fraud Protection",
+        link: `${BASE_URL}/company-services/fraud-protection/`,
       },
     ],
   },
@@ -136,7 +233,11 @@ const Navbar = () => {
         {IsMobileOpen ? (
           <div></div>
         ) : (
-          <Link href={`https://formmycompany.uk/`} aria-label="Home Url">
+          <Link
+            href={`https://formmycompany.uk/`}
+            aria-label="Home Url"
+            className="flex-shrink-0"
+          >
             <Image
               height={70}
               width={140}
@@ -148,7 +249,7 @@ const Navbar = () => {
         )}
 
         {/* Nav Links */}
-        <ul className="pl-0 my-0 md:flex items-center gap-3 flex-wrap hidden">
+        <ul className="pl-0 my-0 md:flex md:flex-wrap items-center gap-x-1 gap-y-2 hidden">
           <NavLink navLink={navLinks} />
           {/* Conditionally show Login or Logout */}
           {!session ? (
@@ -200,7 +301,7 @@ const Navbar = () => {
               >
                 <img
                   src={`/logo.svg`}
-                  alt="My Company Registration Logo"
+                  alt="Form My Company Logo"
                   className="object-contain  h-13 w-auto "
                   loading="eager"
                 />
@@ -237,7 +338,7 @@ const renderSubMenu = (
             <Link
               aria-label={subCategory.label}
               href={subCategory.link}
-              className="block px-4 py-2 w-full hover:bg-gray-50 transition-colors rounded"
+              className="block px-3 py-2 w-full text-[13px] leading-5 font-medium rounded-md transition-all duration-200 hover:bg-[#3F9C96]/10 hover:text-[#3F9C96]"
               onClick={() => {
                 if (setIsMobileOpen) {
                   setIsMobileOpen(false);
@@ -256,7 +357,7 @@ const renderSubMenu = (
 
           {/* Submenu for nested children */}
           {subCategory.children && (
-            <div className="absolute top-0 left-full ml-1 min-w-[220px] bg-white/95 backdrop-blur-md text-gray-800 border border-gray-200 rounded-lg shadow-lg z-50 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200">
+            <div className="absolute top-0 left-full max-lg:right-0 max-lg:left-auto ml-1 w-[260px] max-w-[90vw] bg-white text-gray-800 border border-gray-200 rounded-lg shadow-lg z-50 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200">
               <div className="py-2">
                 {renderSubMenu(subCategory.children, level + 1)}
               </div>
@@ -299,22 +400,24 @@ const NavLink = ({
             onMouseEnter={() => handleMouseEnter(category.label)}
             onMouseLeave={handleMouseLeave}
           >
-            <div className="px-3 py-2 flex items-center gap-1  cursor-pointer text-gray-900">
-              <span>{category.label}</span>
+            <div className="px-3 py-2 flex items-center gap-1 cursor-pointer text-gray-900 rounded-md transition-all duration-200 hover:bg-gray-100 hover:text-[#3F9C96]">
+            <span className="text-[13px] font-medium whitespace-nowrap">{category.label}</span>
               <ChevronDown
                 size={14}
-                className={`transition-transform duration-200 ${
-                  hoveredDropdown === category.label ? "rotate-180 " : ""
+                className={`transition-all duration-300 ${
+                  hoveredDropdown === category.label
+                    ? "rotate-180 text-[#3F9C96]"
+                    : "text-gray-500"
                 }`}
               />
             </div>
 
             {/* Dropdown */}
             {hoveredDropdown === category.label && (
-              <div className="absolute top-full left-0 mt-1 min-w-60 bg-white/95 backdrop-blur-md border border-gray-200 rounded-lg shadow-lg z-50">
-                <div className="p-2 w-full text-gray-900">
+              <div className="absolute top-full left-0 mt-2 w-[280px] max-w-[90vw] bg-white border border-gray-200 rounded-xl shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-200">
+                <div className="p-2 w-full text-gray-900 max-h-[70vh] overflow-y-auto">
                   <Link aria-label={category.label} href={category.link}>
-                    <span className="block px-4 py-2   hover:bg-gray-50  transition-colors rounded">
+                    <span className="block px-3 py-2 text-[13px] leading-5 font-semibold rounded-md transition-all duration-200 hover:bg-[#3F9C96]/10 hover:text-[#3F9C96]">
                       {category.label}
                     </span>
                   </Link>
@@ -336,9 +439,9 @@ const NavLink = ({
           >
             <Link aria-label={category.label} href={category.link}>
             <span className="relative px-3 py-2 block text-gray-800 font-medium transition-all duration-300 
-                hover:text-gray-600 after:absolute after:left-0 after:-bottom-1 after:h-[2px] 
-                after:w-0 after:bg-gray-600 after:transition-all after:duration-300 
-                hover:after:w-full">
+              hover:text-[#3F9C96] after:absolute after:left-0 after:-bottom-1 after:h-[2px] 
+              after:w-0 after:bg-[#3F9C96] after:transition-all after:duration-300 
+              hover:after:w-full">
                 {category.label}
               </span>
             </Link>

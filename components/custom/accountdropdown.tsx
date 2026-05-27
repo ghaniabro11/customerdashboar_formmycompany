@@ -78,7 +78,7 @@ export default function AccountDropdown({
     <Popover>
       <PopoverTrigger asChild>
         <button
-          className="flex items-center gap-2 py-2 text-black font-medium hover:text-orange transition-colors rounded-lg hover:bg-gray-50"
+          className="flex items-center gap-2 px-3 py-2 text-[14px] font-medium text-gray-800 rounded-xl transition-all duration-200 hover:bg-gray-100 hover:text-[#3F9C96]"
           aria-label="Account menu"
         >
           <User className="w-5 h-5" />
@@ -87,15 +87,19 @@ export default function AccountDropdown({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        align="end"
-        side="bottom"
-        sideOffset={8}
-        className="w-64 p-0 z-100 "
-      >
-        <div className="p-2">
+          align="end"
+          side="bottom"
+          sideOffset={8}
+          className="w-[280px] p-0 z-[100] rounded-2xl border border-gray-200 shadow-2xl"
+        >
+        <div className="p-2 max-h-[70vh] overflow-y-auto">
           <div className="px-3 py-2 mb-1">
-            <p className="text-sm font-semibold text-gray-900">My Account</p>
-            <p className="text-xs text-gray-500">Manage your account settings</p>
+            <p className="text-[14px] font-semibold text-gray-900">
+                My Account
+            </p>
+            <p className="text-[12px] text-gray-500">
+              Manage your account settings
+            </p>
           </div>
           <Separator className="my-2" />
           <ul className="space-y-1">
@@ -104,9 +108,9 @@ export default function AccountDropdown({
                 <Link
                   href={item.href}
                   onClick={handleLinkClick}
-                  className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-orange/10 hover:text-orange rounded-lg transition-colors group"
+                  className="flex items-center gap-3 px-3 py-2 text-[13px] font-medium text-gray-700 hover:bg-[#3F9C96]/10 hover:text-[#3F9C96] rounded-xl transition-all duration-200 group"
                 >
-                  <span className="text-base">{item.icon}</span>
+                  <span className="text-sm">{item.icon}</span>
                   <span className="flex-1">{item.label}</span>
                 </Link>
               </li>
@@ -116,7 +120,7 @@ export default function AccountDropdown({
           <Button
             onClick={handleLogout}
             variant="outline"
-            className="w-full justify-start gap-3 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+            className="w-full justify-start gap-3 rounded-xl text-[13px] font-medium text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
           >
             <LogOut className="w-4 h-4" />
             <span>Logout</span>
