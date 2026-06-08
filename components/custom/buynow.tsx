@@ -11,11 +11,13 @@ interface BuyNowButtonProps {
   price: number;
   discount?: number;
   vat?: number;
+  companyHousingFee?: number; // ADD
   label?: string;
   className?: string;
   meta?: any;
   checkoutId?: number;
 }
+
 export const BuyNowButton: React.FC<BuyNowButtonProps> = ({
   title,
   type,

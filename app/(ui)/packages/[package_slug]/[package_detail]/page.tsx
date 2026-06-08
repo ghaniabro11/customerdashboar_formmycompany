@@ -89,7 +89,15 @@ const PackageDetail = async ({
   const price = parseFloat(packageData?.price || "0");
   const discount = parseFloat(packageData?.discount || "0");
   const vat = parseFloat(packageData?.vat || "0");
-  const finalPrice = price + vat - discount;
+  const companyHousingFee = parseFloat(
+    packageData?.company_housing_fee || "0"
+  );
+  
+  const finalPrice =
+    price +
+    vat +
+    companyHousingFee -
+    discount;
 
   return (
     <>
@@ -185,6 +193,7 @@ const PackageDetail = async ({
                     price={finalPrice}
                     discount={discount}
                     vat={vat}
+                    companyHousingFee={companyHousingFee}
                     checkoutId={packageData?.id}
                     className="w-full"
                   />

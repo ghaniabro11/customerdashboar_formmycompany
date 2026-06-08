@@ -23,6 +23,7 @@ export interface Service {
   price: Money;
   discount?: Money;
   vat?: Money;
+  companyHousingFee?: Money; // NEW
   meta?: any;
 }
 
@@ -192,6 +193,13 @@ export const useStore = create<StoreState>()(
             price: Number(product.price),
             discount: Number(product.discount ?? 0),
             vat: Number(product.vat ?? 0),
+          
+            // only package has housing fee
+            companyHousingFee:
+              product.type === "package"
+                ? Number(product.company_housing_fee ?? 0)
+                : 0,
+          
             meta: product.meta ?? {},
           });
         } catch (error) {

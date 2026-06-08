@@ -1,209 +1,181 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import logger from "@/lib/logger/logger";
 
-// Don't initialize Stripe here - do it after validation
-let stripe: Stripe | null = null;
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 
-export async function POST(req: Request) {
-  try {
-    logger.info("=== Payment Intent Creation Started ===");
-    
-    // Validate and initialize Stripe first
-    const stripeKey = process.env.STRIPE_SECRET_KEY;
-    logger.info({
-      hasStripeKey: !!stripeKey,
-      keyPrefix: stripeKey ? stripeKey.substring(0, 7) + "..." : "missing",
-      keyLength: stripeKey?.length || 0,
-      isPublishableKey: stripeKey?.startsWith('pk_') || false,
-      isSecretKey: stripeKey?.startsWith('sk_') || false,
-    }, "Stripe key validation check");
+if (!STRIPE_SECRET_KEY) {
+  throw new Error("STRIPE_SECRET_KEY is not set");
+}
 
-    if (!stripeKey) {
-      logger.error("STRIPE_SECRET_KEY environment variable is not set");
-      return NextResponse.json(
-        { 
-          success: false,
-          message: "Server configuration error: STRIPE_SECRET_KEY is not set",
-          error: "missing_secret_key"
-        },
-        { status: 500 }
-      );
-    }
+const stripe = new Stripe(STRIPE_SECRET_KEY);
 
-    if (stripeKey.startsWith('pk_')) {
-      logger.error({
-        keyType: "publishable",
-        message: "STRIPE_SECRET_KEY is set to a publishable key (pk_) instead of a secret key (sk_)"
-      }, "Invalid Stripe key type");
-      return NextResponse.json(
-        { 
-          success: false,
-          message: "Server configuration error: STRIPE_SECRET_KEY must be a secret key (starts with 'sk_'), not a publishable key",
-          error: "invalid_key_type"
-        },
-        { status: 500 }
-      );
-    }
+type PaymentItem = {
+  id: string;
+  type?: string;
+  price: number | string;
+  qty?: number | string;
+  quantity?: number | string;
+  discount?: number | string;
+  vat?: number | string;
+  companyHousingFee?: number | string;
+  company_housing_fee?: number | string;
+};
 
-    if (!stripeKey.startsWith('sk_')) {
-      logger.error({
-        keyPrefix: stripeKey.substring(0, 7),
-        message: "STRIPE_SECRET_KEY does not start with 'sk_'"
-      }, "Invalid Stripe key format");
-      return NextResponse.json(
-        { 
-          success: false,
-          message: "Server configuration error: STRIPE_SECRET_KEY format is invalid (must start with 'sk_')",
-          error: "invalid_key_format"
-        },
-        { status: 500 }
-      );
-    }
+const toNumber = (value: number | string | undefined | null): number => {
+  if (value === undefined || value === null) return 0;
 
-    // Initialize Stripe after validation
-    if (!stripe) {
-      stripe = new Stripe(stripeKey, {
-        apiVersion: "2025-10-29.clover",
-      });
-      logger.info("Stripe instance initialized successfully");
-    }
+  const num =
+    typeof value === "number" ? value : parseFloat(String(value || 0));
 
-    const body = await req.json();
-    logger.info({ body }, "Request body received");
-    
-    const { items = [], currency = "GBP", paymentMethodId, billing } = body;
-    
-    logger.info({
-      itemsCount: items.length,
-      currency,
-      paymentMethodId,
-      hasBilling: !!billing,
-    }, "Payment intent parameters");
+  return isNaN(num) ? 0 : num;
+};
 
-    // Recalculate totals server-side to prevent tampering
-    const pricing = items.reduce(
-      (acc: any, item: any) => {
-        const unitPrice = parseFloat(item.price || 0);
-        const duration = parseFloat(item.duration || 0);
-        const qty = parseFloat(item.qty || 1);
-        const discount = parseFloat(item.discount || 0);
-        const vat = parseFloat(item.vat || 0);
+const normalizeItems = (items: PaymentItem[]) => {
+  return items.map((item) => {
+    const type = item.type || "";
 
-        const workspaceSubtotal = unitPrice * duration * qty;
-        const workspaceDiscount = discount * duration * qty;
-        const workspaceTax = vat * duration * qty;
+    const price = toNumber(item.price);
+    const discount = toNumber(item.discount);
+    const vat = toNumber(item.vat);
 
-        return {
-          subtotal: acc.subtotal + workspaceSubtotal,
-          discountTotal: acc.discountTotal + workspaceDiscount,
-          taxTotal: acc.taxTotal + workspaceTax,
-        };
-      },
-      { subtotal: 0, discountTotal: 0, taxTotal: 0 }
+    const qty = Math.max(
+      1,
+      Math.floor(toNumber(item.qty ?? item.quantity ?? 1))
     );
 
-    const netTotal = pricing.subtotal - pricing.discountTotal;
-    const total = netTotal + pricing.taxTotal;
-    const amount = Math.max(0, Math.round(total * 100)); // amount in pence/cents
+    const companyHousingFee =
+      type === "package"
+        ? toNumber(item.companyHousingFee ?? item.company_housing_fee ?? 0)
+        : 0;
 
-    logger.info({
-      pricing,
-      netTotal,
-      total,
-      amount,
-      currency: (currency || "gbp").toLowerCase(),
-    }, "Calculated pricing breakdown");
+    const net = Math.max(0, price - discount);
 
-    // Create PaymentIntent server-side
-    logger.info({
-      amount,
-      currency: (currency || "gbp").toLowerCase(),
-      paymentMethodId: paymentMethodId || "not provided",
-      willAttachPaymentMethod: false,
-    }, "Creating Stripe PaymentIntent...");
-    
-    // Don't attach payment_method here - it will be attached during client-side confirmation
-    // This avoids "No such PaymentMethod" errors when payment method is created client-side
-    const intent = await stripe.paymentIntents.create({
-      amount,
-      currency: (currency || "gbp").toLowerCase(),
-      // Remove payment_method parameter - attach it during confirmation instead
-      // payment_method: paymentMethodId || undefined,
-      confirm: false,
-      metadata: {
-        items: JSON.stringify(items),
-        billing: billing ? JSON.stringify(billing) : "",
-      },
-    }) as any;
+    const lineTotal =
+      (net + vat + companyHousingFee) * qty;
 
-    logger.info({
-      paymentIntentId: intent.id,
-      amount: intent.amount,
-      currency: intent.currency,
-      status: intent.status,
-      clientSecret: intent.client_secret ? "***present***" : "missing",
-      created: intent.created,
-      metadata: intent.metadata,
-      paymentMethodTypes: intent.payment_method_types,
-      charges: intent.charges,
-      customer: intent.customer,
-      description: intent.description,
-      completePaymentIntent: JSON.stringify(intent, null, 2), // Log complete PaymentIntent
-    }, "PaymentIntent created successfully - complete details");
+    return {
+      id: item.id,
+      type,
+      price,
+      discount,
+      vat,
+      qty,
+      companyHousingFee,
+      net,
+      lineTotal,
+    };
+  });
+};
 
-    // Return complete payment intent response
-    // CRITICAL: Ensure we're returning client_secret, NOT the secret key
-    const clientSecret = intent.client_secret;
-    
-    // Safety check - ensure we're not accidentally returning the secret key
-    if (!clientSecret || clientSecret.startsWith('sk_')) {
-      logger.error({
-        hasClientSecret: !!clientSecret,
-        clientSecretPrefix: clientSecret?.substring(0, 10),
-        message: "CRITICAL: PaymentIntent client_secret is missing or appears to be a secret key!",
-        intentId: intent.id,
-      }, "Invalid client_secret in PaymentIntent");
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+
+    const currency = String(body.currency || "GBP").toLowerCase();
+    const billing = body.billing || {};
+    const paymentMethodId = body.paymentMethodId;
+    const items = Array.isArray(body.items) ? body.items : [];
+
+    if (!paymentMethodId) {
       return NextResponse.json(
         {
           success: false,
-          message: "Payment intent creation failed - invalid client secret",
-          error: "invalid_client_secret"
+          message: "Payment method is required",
+          error: "missing_payment_method",
         },
-        { status: 500 }
+        { status: 422 }
       );
     }
-    
-    logger.info({
-      clientSecretPrefix: clientSecret.substring(0, 30) + "...",
-      clientSecretLength: clientSecret.length,
-      clientSecretFormat: "pi_..._secret_...",
-    }, "Validated client secret before returning to client");
 
-    const response = {
+    if (!items.length) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Cart is empty",
+          error: "empty_cart",
+        },
+        { status: 422 }
+      );
+    }
+
+    const normalizedItems = normalizeItems(items);
+
+    const subtotal = normalizedItems.reduce(
+      (sum, item) => sum + item.price * item.qty,
+      0
+    );
+
+    const discountTotal = normalizedItems.reduce(
+      (sum, item) => sum + item.discount * item.qty,
+      0
+    );
+
+    const taxTotal = normalizedItems.reduce(
+      (sum, item) => sum + item.vat * item.qty,
+      0
+    );
+
+    const companyHousingFeeTotal = normalizedItems.reduce(
+      (sum, item) => sum + item.companyHousingFee * item.qty,
+      0
+    );
+
+    const grandTotal = normalizedItems.reduce(
+      (sum, item) => sum + item.lineTotal,
+      0
+    );
+
+    const amountInPence = Math.round(grandTotal * 100);
+
+    if (amountInPence <= 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid payment amount",
+          error: "invalid_amount",
+        },
+        { status: 422 }
+      );
+    }
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amountInPence,
+      currency,
+      payment_method_types: ["card"],
+      receipt_email: billing.email || undefined,
+      metadata: {
+        subtotal: subtotal.toFixed(2),
+        discount_total: discountTotal.toFixed(2),
+        tax_total: taxTotal.toFixed(2),
+        company_housing_fee: companyHousingFeeTotal.toFixed(2),
+        grand_total: grandTotal.toFixed(2),
+        items_count: String(normalizedItems.length),
+      },
+    });
+
+    return NextResponse.json({
       success: true,
-      clientSecret: clientSecret, // Use the validated variable
-      paymentIntent: intent, // Complete payment intent object
-      amount: intent.amount,
-      currency: intent.currency,
-    };
+      clientSecret: paymentIntent.client_secret,
+      paymentIntent,
+      amount: amountInPence,
+      currency,
+      totals: {
+        subtotal,
+        discount_total: discountTotal,
+        tax_total: taxTotal,
+        company_housing_fee: companyHousingFeeTotal,
+        grand_total: grandTotal,
+      },
+      items: normalizedItems,
+    });
+  } catch (error: any) {
+    console.error("Create payment intent error:", error);
 
-    logger.info("=== Payment Intent Creation Completed Successfully ===");
-    return NextResponse.json(response);
-  } catch (err: any) {
-    logger.error({
-      error: err.message,
-      type: err.type,
-      code: err.code,
-      statusCode: err.statusCode,
-      stack: err.stack,
-    }, "Payment intent creation error");
-    
     return NextResponse.json(
-      { 
+      {
         success: false,
-        message: err.message || "Server error creating payment intent",
-        error: err.type || "unknown_error"
+        message: error.message || "Failed to create payment intent",
+        error: "server_error",
       },
       { status: 500 }
     );

@@ -15,11 +15,13 @@ export interface BillingDetails {
 
 export interface PaymentItem {
   id: string;
-  price: number;
+  type: string;
+  price: number | string;
   duration: number;
-  qty: number;
-  discount?: number;
-  vat?: number;
+  qty: number | string;
+  discount?: number | string;
+  vat?: number | string;
+  companyHousingFee?: number | string;
 }
 
 export interface CreatePaymentIntentRequest {
@@ -47,9 +49,54 @@ export interface ProcessPaymentResult {
 }
 
 export class StripePaymentService {
-  /**
-   * Creates a payment method using Stripe Elements
-   */
+  private static toNumber(value: number | string | undefined | null): number {
+    if (value === undefined || value === null) return 0;
+
+    const num =
+      typeof value === "number" ? value : parseFloat(String(value || 0));
+
+    return isNaN(num) ? 0 : num;
+  }
+
+  private static normalizePaymentItems(items: PaymentItem[]): PaymentItem[] {
+    return items.map((item) => {
+      const type = item.type || "";
+      const price = this.toNumber(item.price);
+      const discount = this.toNumber(item.discount);
+      const vat = this.toNumber(item.vat);
+      const qty = Math.max(1, this.toNumber(item.qty || 1));
+
+      const companyHousingFee =
+        type === "package" ? this.toNumber(item.companyHousingFee) : 0;
+
+      return {
+        ...item,
+        type,
+        price,
+        discount,
+        vat,
+        qty,
+        companyHousingFee,
+      };
+    });
+  }
+
+  private static calculateItemsTotal(items: PaymentItem[]): number {
+    return items.reduce((sum, item) => {
+      const price = this.toNumber(item.price);
+      const discount = this.toNumber(item.discount);
+      const vat = this.toNumber(item.vat);
+      const qty = Math.max(1, this.toNumber(item.qty || 1));
+
+      const companyHousingFee =
+        item.type === "package" ? this.toNumber(item.companyHousingFee) : 0;
+
+      const net = Math.max(0, price - discount);
+
+      return sum + (net + vat + companyHousingFee) * qty;
+    }, 0);
+  }
+
   static async createPaymentMethod(
     stripe: Stripe | null,
     elements: StripeElements | null,
@@ -57,21 +104,13 @@ export class StripePaymentService {
     billingDetails: BillingDetails
   ): Promise<{ paymentMethod: any; error: any }> {
     logger.info("=== Creating Payment Method ===");
-    logger.info(
-      {
-        hasStripe: !!stripe,
-        hasElements: !!elements,
-        cardholderName,
-        billingEmail: billingDetails.email,
-      },
-      "Payment method creation started"
-    );
 
     if (!stripe || !elements) {
       const error = {
         message: "Stripe is not loaded. Please refresh the page.",
         type: "stripe_not_loaded",
       };
+
       logger.error(error, "Stripe not initialized");
       return { paymentMethod: null, error };
     }
@@ -83,6 +122,7 @@ export class StripePaymentService {
         message: "Card element not found",
         type: "card_element_not_found",
       };
+
       logger.error(error, "Card element missing");
       return { paymentMethod: null, error };
     }
@@ -104,7 +144,6 @@ export class StripePaymentService {
             },
           },
         });
-      logger.info(paymentMethod, "Payment method");
 
       if (pmError) {
         logger.error(
@@ -116,6 +155,7 @@ export class StripePaymentService {
           },
           "Payment method creation failed"
         );
+
         return { paymentMethod: null, error: pmError };
       }
 
@@ -128,7 +168,7 @@ export class StripePaymentService {
         },
         "Payment method created successfully"
       );
-      logger.info(paymentMethod, "Payment method");
+
       return { paymentMethod, error: null };
     } catch (err: any) {
       logger.error(
@@ -139,6 +179,7 @@ export class StripePaymentService {
         },
         "Unexpected error creating payment method"
       );
+
       return {
         paymentMethod: null,
         error: {
@@ -149,56 +190,50 @@ export class StripePaymentService {
     }
   }
 
-  /**
-   * Creates a payment intent by calling the API
-   */
   static async createPaymentIntent(
     request: CreatePaymentIntentRequest
   ): Promise<PaymentIntentResponse> {
     logger.info("=== Creating Payment Intent ===");
-    logger.info(
-      {
-        itemsCount: request.items.length,
-        currency: request.currency,
-        paymentMethodId: request.paymentMethodId,
-        hasBilling: !!request.billing,
-      },
-      "Payment intent request started"
-    );
 
     try {
+      const normalizedItems = this.normalizePaymentItems(request.items);
+      const expectedTotal = this.calculateItemsTotal(normalizedItems);
+      const expectedAmountInPence = Math.round(expectedTotal * 100);
+
+      logger.info(
+        {
+          itemsCount: normalizedItems.length,
+          currency: request.currency || "GBP",
+          paymentMethodId: request.paymentMethodId,
+          expectedTotal,
+          expectedAmountInPence,
+          items: normalizedItems,
+        },
+        "Payment intent request prepared"
+      );
+
       const response = await fetch("/api/create-payment-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           currency: request.currency || "GBP",
           billing: request.billing,
-          items: request.items,
+          items: normalizedItems,
           paymentMethodId: request.paymentMethodId,
         }),
       });
-
-      logger.info(
-        {
-          status: response.status,
-          statusText: response.statusText,
-          ok: response.ok,
-        },
-        "Payment intent API response status"
-      );
 
       const data = await response.json();
 
       logger.info(
         {
+          status: response.status,
+          ok: response.ok,
           success: data.success,
-          hasClientSecret: !!data.clientSecret,
-          hasPaymentIntent: !!data.paymentIntent,
           amount: data.amount,
           currency: data.currency,
-          data: data,
         },
-        "Payment intent API response data"
+        "Payment intent API response"
       );
 
       if (!response.ok || !data.success) {
@@ -210,11 +245,25 @@ export class StripePaymentService {
           },
           "Payment intent creation failed"
         );
+
         return {
           success: false,
           message: data?.message || "Failed to create payment intent",
           error: data.error,
         };
+      }
+
+      if (
+        typeof data.amount === "number" &&
+        data.amount !== expectedAmountInPence
+      ) {
+        logger.warn(
+          {
+            frontendExpectedAmount: expectedAmountInPence,
+            backendAmount: data.amount,
+          },
+          "Stripe amount mismatch between frontend expected and API response"
+        );
       }
 
       return {
@@ -233,6 +282,7 @@ export class StripePaymentService {
         },
         "Error calling payment intent API"
       );
+
       return {
         success: false,
         message: err.message || "Failed to create payment intent",
@@ -241,9 +291,6 @@ export class StripePaymentService {
     }
   }
 
-  /**
-   * Validates the client secret format
-   */
   static validateClientSecret(clientSecret: string | undefined): {
     valid: boolean;
     error?: string;
@@ -252,6 +299,7 @@ export class StripePaymentService {
 
     if (!clientSecret) {
       logger.error("Client secret is missing");
+
       return {
         valid: false,
         error: "Payment initialization failed (no client secret returned)",
@@ -260,23 +308,20 @@ export class StripePaymentService {
 
     const cleanClientSecret = String(clientSecret).trim();
 
-    // CRITICAL: Must not be a secret key
     if (cleanClientSecret.startsWith("sk_")) {
       logger.error(
         {
           receivedValue: cleanClientSecret.substring(0, 50) + "...",
-          message:
-            "CRITICAL ERROR: Received Stripe secret key instead of PaymentIntent client secret!",
         },
-        "Invalid client secret - appears to be secret key"
+        "Invalid client secret - secret key received"
       );
+
       return {
         valid: false,
         error: "Payment initialization failed (server configuration error)",
       };
     }
 
-    // Must be PaymentIntent format: pi_..._secret_...
     if (
       !cleanClientSecret.startsWith("pi_") ||
       !cleanClientSecret.includes("_secret_")
@@ -285,31 +330,19 @@ export class StripePaymentService {
         {
           receivedValue: cleanClientSecret.substring(0, 50) + "...",
           expectedFormat: "pi_..._secret_...",
-          actualFormat: cleanClientSecret.substring(0, 10) + "...",
         },
         "Invalid client secret format"
       );
+
       return {
         valid: false,
         error: "Payment initialization failed (invalid client secret format)",
       };
     }
 
-    logger.info(
-      {
-        clientSecretPrefix: cleanClientSecret.substring(0, 50) + "...",
-        clientSecretLength: cleanClientSecret.length,
-        isValidFormat: true,
-      },
-      "Client secret validated successfully"
-    );
-
     return { valid: true };
   }
 
-  /**
-   * Confirms the payment using Stripe
-   */
   static async confirmPayment(
     stripe: Stripe | null,
     clientSecret: string,
@@ -317,18 +350,12 @@ export class StripePaymentService {
     paymentMethod: any
   ): Promise<ProcessPaymentResult> {
     logger.info("=== Confirming Payment ===");
-    logger.info(
-      {
-        hasStripe: !!stripe,
-        clientSecretPrefix: clientSecret.substring(0, 50) + "...",
-        paymentMethodId,
-      },
-      "Payment confirmation started"
-    );
 
     if (!stripe) {
       const error = "Stripe is not loaded";
+
       logger.error(error, "Stripe not initialized");
+
       return {
         success: false,
         error: "stripe_not_loaded",
@@ -336,8 +363,8 @@ export class StripePaymentService {
       };
     }
 
-    // Final validation before confirmation
     const validation = this.validateClientSecret(clientSecret);
+
     if (!validation.valid) {
       return {
         success: false,
@@ -347,27 +374,9 @@ export class StripePaymentService {
     }
 
     try {
-      logger.info(
-        {
-          callingConfirmCardPayment: true,
-          clientSecretBeingPassed: clientSecret.substring(0, 50) + "...",
-        },
-        "Calling stripe.confirmCardPayment"
-      );
-
       const confirmResult = (await stripe.confirmCardPayment(clientSecret, {
         payment_method: paymentMethodId,
       })) as any;
-
-      logger.info(
-        {
-          confirmCardPaymentCompleted: true,
-          hasError: !!confirmResult.error,
-          paymentIntentId: confirmResult.paymentIntent?.id,
-          paymentIntentStatus: confirmResult.paymentIntent?.status,
-        },
-        "Payment confirmation completed"
-      );
 
       if (confirmResult.error) {
         logger.error(
@@ -379,6 +388,7 @@ export class StripePaymentService {
           },
           "Payment confirmation failed"
         );
+
         return {
           success: false,
           error: confirmResult.error.code || "payment_failed",
@@ -398,38 +408,29 @@ export class StripePaymentService {
         },
         "Payment intent final status"
       );
-      logger.info(paymentIntent, "Payment intent");
 
       if (paymentIntent && paymentIntent.status === "succeeded") {
-        logger.info("=== Payment Completed Successfully ===");
         return {
           success: true,
           paymentIntent: { paymentIntent, paymentMethod: { paymentMethod } },
         };
-      } else {
-        logger.warn(
-          {
-            status: paymentIntent?.status,
-            paymentIntentId: paymentIntent?.id,
-          },
-          "Payment not completed with succeeded status"
-        );
-        return {
-          success: false,
-          error: "payment_not_succeeded",
-          errorMessage: `Payment status: ${paymentIntent?.status}. Please try again.`,
-        };
       }
+
+      return {
+        success: false,
+        error: "payment_not_succeeded",
+        errorMessage: `Payment status: ${paymentIntent?.status}. Please try again.`,
+      };
     } catch (err: any) {
       logger.error(
         {
           errorMessage: err.message,
           errorStack: err.stack,
           errorName: err.name,
-          clientSecretPrefix: clientSecret.substring(0, 50) + "...",
         },
         "Error in confirmCardPayment call"
       );
+
       return {
         success: false,
         error: "confirmation_error",
@@ -438,9 +439,6 @@ export class StripePaymentService {
     }
   }
 
-  /**
-   * Complete payment flow: Create payment method -> Create intent -> Confirm payment
-   */
   static async processPayment(
     stripe: Stripe | null,
     elements: StripeElements | null,
@@ -450,17 +448,9 @@ export class StripePaymentService {
     currency: string = "GBP"
   ): Promise<ProcessPaymentResult> {
     logger.info("=== Starting Complete Payment Flow ===");
-    logger.info(
-      {
-        itemsCount: items.length,
-        currency,
-        cardholderName,
-        billingEmail: billingDetails.email,
-      },
-      "Payment flow initiated"
-    );
 
-    // Step 1: Create payment method
+    const normalizedItems = this.normalizePaymentItems(items);
+
     const { paymentMethod, error: pmError } = await this.createPaymentMethod(
       stripe,
       elements,
@@ -476,11 +466,10 @@ export class StripePaymentService {
       };
     }
 
-    // Step 2: Create payment intent
     const paymentIntentResponse = await this.createPaymentIntent({
       currency,
       billing: billingDetails,
-      items,
+      items: normalizedItems,
       paymentMethodId: paymentMethod.id,
     });
 
@@ -493,10 +482,10 @@ export class StripePaymentService {
       };
     }
 
-    // Step 3: Validate client secret
     const validation = this.validateClientSecret(
       paymentIntentResponse.clientSecret
     );
+
     if (!validation.valid) {
       return {
         success: false,
@@ -505,14 +494,11 @@ export class StripePaymentService {
       };
     }
 
-    // Step 4: Confirm payment
-    const confirmResult = await this.confirmPayment(
+    return await this.confirmPayment(
       stripe,
       paymentIntentResponse.clientSecret,
       paymentMethod.id,
       paymentMethod
     );
-
-    return confirmResult;
   }
 }

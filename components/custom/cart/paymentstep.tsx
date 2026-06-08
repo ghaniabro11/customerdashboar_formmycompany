@@ -1,6 +1,7 @@
-import { CartLine } from "@/constants/types";
+"use client";
+
 import logger from "@/lib/logger/logger";
-import { calc, gbp } from "@/lib/utils";
+import { gbp } from "@/lib/utils";
 import { useStore } from "@/store/cart";
 import {
   CardElement,
@@ -9,8 +10,8 @@ import {
   useStripe,
 } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
-import { CreditCard, Loader2, Mail, MapPin, Phone, Wallet } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import { CreditCard, Loader2, Wallet } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
 import OrderSummary from "./ordersummary";
 import { CheckoutAction } from "@/actions/checkout";
 import { coutries } from "@/constants/dummydata";
@@ -21,9 +22,6 @@ import {
 } from "@/lib/stripe-payment.service";
 import { checkoutViaWallet, fetchWalletBalance } from "@/apis/wallet";
 
-
-
-// CRITICAL: Validate that we're using a publishable key, not a secret key
 const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 
 if (!STRIPE_PUBLISHABLE_KEY) {
@@ -32,19 +30,14 @@ if (!STRIPE_PUBLISHABLE_KEY) {
 
 if (STRIPE_PUBLISHABLE_KEY.startsWith("sk_")) {
   throw new Error(
-    "CRITICAL ERROR: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is set to a SECRET KEY (sk_) instead of a PUBLISHABLE KEY (pk_). " +
-      "This is a security issue and will cause payment failures. Please check your .env file."
+    "CRITICAL ERROR: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is set to a SECRET KEY (sk_) instead of a PUBLISHABLE KEY (pk_)."
   );
 }
 
 if (!STRIPE_PUBLISHABLE_KEY.startsWith("pk_")) {
-  throw new Error(
-    "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY must start with 'pk_' (publishable key), not 'sk_' (secret key)"
-  );
+  throw new Error("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY must start with 'pk_'");
 }
 
-
-// Initialize Stripe with your publishable key
 const stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY);
 
 const CARD_ELEMENT_OPTIONS = {
@@ -65,16 +58,51 @@ const CARD_ELEMENT_OPTIONS = {
   },
 };
 
+const toNumber = (value: number | string | undefined | null): number => {
+  if (value === undefined || value === null || value === "") return 0;
+
+  const num =
+    typeof value === "number" ? value : parseFloat(String(value || 0));
+
+  return isNaN(num) ? 0 : num;
+};
+
+const normalizeType = (type: any): string => {
+  return String(type || "").trim().toLowerCase();
+};
+
+const getCompanyHousingFee = (service: any): number => {
+  const type = normalizeType(service.type);
+
+  if (type !== "package") return 0;
+
+  return toNumber(
+    service.companyHousingFee ?? service.company_housing_fee ?? 0
+  );
+};
+
+type CheckoutItemPayload = {
+  type: string;
+  id: string;
+  quantity: string;
+  meta: {
+    features?: string[];
+    service_id?: string;
+  };
+};
+
 const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
   onNext,
   onBack,
 }) => {
-  const [countrySearch, setCountrySearch] = useState("");
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const stripe = useStripe();
   const elements = useElements();
-  const { services, companyName, setPaymentStatus, removeService, reset } =
+
+  const { services, companyName, setPaymentStatus, removeService } =
     useStore();
+
+  const [countrySearch, setCountrySearch] = useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const [email, setEmail] = useState("");
   const [city, setCity] = useState("");
@@ -82,37 +110,71 @@ const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [cardholderName, setCardholderName] = useState("");
+
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isProcessingWallet, setIsProcessingWallet] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [isLoadingBalance, setIsLoadingBalance] = useState(true);
-  const [isProcessingWallet, setIsProcessingWallet] = useState(false);
 
-  const taxRate = 0;
-  const cartLines: CartLine[] = services.map((s) => ({ ...s, qty: 1 }));
-  const totals = calc(cartLines, taxRate);
+  const totals = useMemo(() => {
+    const subtotal = services.reduce((sum, service) => {
+      return sum + toNumber(service.price);
+    }, 0);
+
+    const discount = services.reduce((sum, service) => {
+      return sum + toNumber(service.discount);
+    }, 0);
+
+    const vat = services.reduce((sum, service) => {
+      return sum + toNumber(service.vat);
+    }, 0);
+
+    const companyHousingFee = services.reduce((sum, service) => {
+      return sum + getCompanyHousingFee(service);
+    }, 0);
+
+    const netSubtotal = services.reduce((sum, service) => {
+      const price = toNumber(service.price);
+      const itemDiscount = toNumber(service.discount);
+
+      return sum + Math.max(0, price - itemDiscount);
+    }, 0);
+
+    const total = netSubtotal + vat + companyHousingFee;
+
+    return {
+      subtotal,
+      discount,
+      vat,
+      companyHousingFee,
+      total,
+    };
+  }, [services]);
 
   const sortedCountries = [...coutries].sort((a, b) =>
     a.name.localeCompare(b.name)
   );
-  
+
   const filteredCountries = sortedCountries.filter((c) =>
     c.name.toLowerCase().includes(countrySearch.toLowerCase())
   );
 
-  // Fetch wallet balance on component mount
+  const canPayViaWallet =
+    !isLoadingBalance && walletBalance >= totals.total && services.length > 0;
+
   useEffect(() => {
     const fetchBalance = async () => {
       try {
         setIsLoadingBalance(true);
+
         const balanceData = await fetchWalletBalance();
 
         if (balanceData) {
           const balance = parseFloat(balanceData.balance || "0");
-          setWalletBalance(balance);
-          logger.info({ balance }, "Wallet balance fetched");
+          setWalletBalance(isNaN(balance) ? 0 : balance);
         } else {
-          logger.warn("Failed to fetch wallet balance");
           setWalletBalance(0);
         }
       } catch (error: any) {
@@ -126,31 +188,65 @@ const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
     fetchBalance();
   }, []);
 
-
   useEffect(() => {
     const handleClickOutside = (e: any) => {
       if (!e.target.closest(".country-dropdown")) {
         setIsDropdownOpen(false);
       }
     };
-  
+
     document.addEventListener("click", handleClickOutside);
+
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    const handleClickOutside = (e: any) => {
-      if (!e.target.closest(".country-dropdown")) {
-        setIsDropdownOpen(false);
+  const buildItemsPayload = (): CheckoutItemPayload[] => {
+    return services.reduce<CheckoutItemPayload[]>((acc, service) => {
+      const itemId =
+        service.checkoutId ??
+        (service.meta?.service_id !== undefined
+          ? service.meta.service_id
+          : undefined);
+
+      if (!itemId) {
+        logger.warn("Skipping checkout item with no id", service);
+        return acc;
       }
-    };
-  
-    document.addEventListener("click", handleClickOutside);
-    return () => document.removeEventListener("click", handleClickOutside);
-  }, []);
+
+      const meta: {
+        features?: string[];
+        service_id?: string;
+      } = {};
+
+      if (
+        Array.isArray(service.meta?.features) &&
+        service.meta.features.length
+      ) {
+        meta.features = service.meta.features.map((feature: any) =>
+          String(feature)
+        );
+      }
+
+      if (service.meta?.service_id !== undefined) {
+        meta.service_id = String(service.meta.service_id);
+      }
+
+      acc.push({
+        type: normalizeType(service.type),
+        id: String(itemId),
+        quantity: "1",
+        meta,
+      });
+
+      return acc;
+    }, []);
+  };
 
   const handleSubmit = async () => {
-    if (!stripe || !elements) {
+    if (!stripe || !elements) return;
+
+    if (!services.length) {
+      setErrorMessage("Your cart is empty");
       return;
     }
 
@@ -163,18 +259,7 @@ const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
     setPaymentStatus("processing");
     setErrorMessage("");
 
-    logger.info("=== Checkout Form Submitted ===");
-    logger.info(
-      {
-        servicesCount: services.length,
-        hasStripe: !!stripe,
-        hasElements: !!elements,
-      },
-      "Initial checkout state"
-    );
-
     try {
-      // Prepare billing details
       const billingDetails: BillingDetails = {
         name: cardholderName,
         email,
@@ -185,20 +270,46 @@ const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
         postcode: "",
       };
 
-      // Prepare payment items
-      const paymentItems: PaymentItem[] = services.map((s) => ({
-        id: s.checkoutId?.toString() || s.id,
-        price: typeof s.price === "number" ? s.price : parseFloat(s.price) || 0,
-        duration: 1, // Default duration for services
-        qty: 1,
-        discount:
-          typeof s.discount === "number"
-            ? s.discount
-            : parseFloat(s.discount || "0") || 0,
-        vat: typeof s.vat === "number" ? s.vat : parseFloat(s.vat || "0") || 0,
-      }));
+      const paymentItems: PaymentItem[] = services.map((service) => {
+        const type = normalizeType(service.type);
+        const companyHousingFee =
+          type === "package" ? getCompanyHousingFee(service) : 0;
 
-      // Process payment using the service
+        return {
+          id: service.checkoutId?.toString() || service.id,
+
+          // IMPORTANT: this fixes Stripe housing fee issue
+          type,
+
+          price: toNumber(service.price),
+          duration: 1,
+          qty: 1,
+          discount: toNumber(service.discount),
+          vat: toNumber(service.vat),
+          companyHousingFee,
+        };
+      });
+
+      const expectedStripeTotal = paymentItems.reduce((sum, item) => {
+        const price = toNumber(item.price);
+        const discount = toNumber(item.discount);
+        const vat = toNumber(item.vat);
+        const fee =
+          item.type === "package" ? toNumber(item.companyHousingFee) : 0;
+
+        return sum + Math.max(0, price - discount) + vat + fee;
+      }, 0);
+
+      logger.info(
+        {
+          paymentItems,
+          totals,
+          expectedStripeTotal,
+          expectedStripeAmountInPence: Math.round(expectedStripeTotal * 100),
+        },
+        "FINAL Stripe payment items before processPayment"
+      );
+
       const result = await StripePaymentService.processPayment(
         stripe,
         elements,
@@ -209,13 +320,6 @@ const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
       );
 
       if (!result.success) {
-        logger.error(
-          {
-            error: result.error,
-            errorMessage: result.errorMessage,
-          },
-          "Payment processing failed"
-        );
         setErrorMessage(
           result.errorMessage || "Payment failed. Please try again."
         );
@@ -224,147 +328,88 @@ const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
         return;
       }
 
-      // Payment succeeded - call CheckoutAction
       if (
-        result?.paymentIntent?.paymentIntent &&
-        result?.paymentIntent?.paymentIntent?.status === "succeeded"
+        !result?.paymentIntent?.paymentIntent ||
+        result?.paymentIntent?.paymentIntent?.status !== "succeeded"
       ) {
-        logger.info("=== Payment Completed Successfully ===");
+        setErrorMessage("Payment was not completed. Please try again.");
+        setIsProcessing(false);
+        setPaymentStatus("failed");
+        return;
+      }
 
-        try {
-          const payment = {
-            billing: {
-              first_name: cardholderName,
-              last_name: "",
-              address: address,
-              city: city,
-              country:
-                result?.paymentIntent?.paymentMethod?.paymentMethod?.card
-                  ?.country,
-              postal_code:
-                result?.paymentIntent?.paymentMethod?.paymentMethod
-                  ?.billing_details?.address?.postal_code || "",
-              email: email,
-              phone: phone,
-            },
-            currency: "gbp",
-            amount: result?.paymentIntent?.paymentIntent?.amount,
-            id: result?.paymentIntent?.paymentIntent?.id,
-            status: "succeeded",
-            created:
-              result?.paymentIntent?.paymentIntent?.created ||
-              Math.floor(Date.now() / 1000),
-            card: {
-              brand:
-                result?.paymentIntent?.paymentMethod?.paymentMethod?.card
-                  ?.brand,
-              exp_month:
-                result?.paymentIntent?.paymentMethod?.paymentMethod?.card
-                  ?.exp_month,
-              exp_year:
-                result?.paymentIntent?.paymentMethod?.paymentMethod?.card
-                  ?.exp_year,
-              last4:
-                result?.paymentIntent?.paymentMethod?.paymentMethod?.card
-                  ?.last4,
-            },
-            response: result?.paymentIntent,
-          };
-          const itemsPayload = services.reduce<
-            {
-              type: string;
-              id: string;
-              quantity: string;
-              meta: { features?: string[]; service_id?: string };
-            }[]
-          >((acc, service) => {
-            const itemId =
-              service.checkoutId ??
-              (service.meta?.service_id !== undefined
-                ? service.meta.service_id
-                : undefined);
+      const payment = {
+        billing: {
+          first_name: cardholderName,
+          last_name: "",
+          address,
+          city,
+          country:
+            result?.paymentIntent?.paymentMethod?.paymentMethod?.card
+              ?.country || country,
+          postal_code:
+            result?.paymentIntent?.paymentMethod?.paymentMethod
+              ?.billing_details?.address?.postal_code || "",
+          email,
+          phone,
+        },
+        currency: "gbp",
+        amount: result?.paymentIntent?.paymentIntent?.amount,
+        id: result?.paymentIntent?.paymentIntent?.id,
+        status: "succeeded",
+        created:
+          result?.paymentIntent?.paymentIntent?.created ||
+          Math.floor(Date.now() / 1000),
+        card: {
+          brand:
+            result?.paymentIntent?.paymentMethod?.paymentMethod?.card?.brand,
+          exp_month:
+            result?.paymentIntent?.paymentMethod?.paymentMethod?.card
+              ?.exp_month,
+          exp_year:
+            result?.paymentIntent?.paymentMethod?.paymentMethod?.card
+              ?.exp_year,
+          last4:
+            result?.paymentIntent?.paymentMethod?.paymentMethod?.card?.last4,
+        },
+        response: result?.paymentIntent,
+      };
 
-            if (!itemId) {
-              logger.warn("Skipping checkout item with no id", service);
-              return acc;
-            }
+      const itemsPayload = buildItemsPayload();
 
-            const meta: { features?: string[]; service_id?: string } = {};
+      const res = await CheckoutAction({
+        company_name: companyName,
+        postcode:
+          result.paymentIntent?.charges?.data?.[0]?.billing_details?.address
+            ?.postal_code || "",
+        country:
+          result.paymentIntent?.charges?.data?.[0]?.billing_details?.address
+            ?.country || country,
+        city:
+          result.paymentIntent?.charges?.data?.[0]?.billing_details?.address
+            ?.city || city,
+        contact_email:
+          result.paymentIntent?.charges?.data?.[0]?.billing_details?.email ||
+          email,
+        contact_phone:
+          result.paymentIntent?.charges?.data?.[0]?.billing_details?.phone ||
+          phone,
+        registered_address:
+          result.paymentIntent?.charges?.data?.[0]?.billing_details?.address
+            ?.line1 || address,
+        company_type: "private limited company",
+        business_activity: "business",
+        items: itemsPayload,
+        payment,
+      });
 
-            if (
-              Array.isArray(service.meta?.features) &&
-              service.meta.features.length
-            ) {
-              meta.features = service.meta.features.map((feature: any) =>
-                String(feature)
-              );
-            }
-
-            if (service.meta?.service_id !== undefined) {
-              meta.service_id = String(service.meta.service_id);
-            }
-
-            acc.push({
-              type: service.type,
-              id: String(itemId),
-              quantity: "1",
-              meta,
-            });
-            return acc;
-          }, []);
-
-          logger.info(itemsPayload, "Items Payload");
-          logger.info(payment, "payment");
-          const res = await CheckoutAction({
-            company_name: companyName,
-            postcode:
-              result.paymentIntent?.charges?.data?.[0]?.billing_details?.address
-                ?.postal_code || "",
-            country:
-              result.paymentIntent?.charges?.data?.[0]?.billing_details?.address
-                ?.country || country,
-            city:
-              result.paymentIntent?.charges?.data?.[0]?.billing_details?.address
-                ?.city || city,
-            contact_email:
-              result.paymentIntent?.charges?.data?.[0]?.billing_details
-                ?.email || email,
-            contact_phone:
-              result.paymentIntent?.charges?.data?.[0]?.billing_details
-                ?.phone || phone,
-            registered_address:
-              result.paymentIntent?.charges?.data?.[0]?.billing_details?.address
-                ?.line1 || address,
-            company_type: "private limited company",
-            business_activity: "business",
-            items: itemsPayload,
-            payment,
-          });
-
-          logger.info(res, "Checkout Response");
-
-          if (res.ok) {
-            setPaymentStatus("success");
-            onNext();
-          } else {
-            setErrorMessage(res.message || "Checkout failed");
-            setPaymentStatus("failed");
-            setIsProcessing(false);
-          }
-        } catch (externalApiError: any) {
-          logger.error(
-            {
-              error: externalApiError.message,
-              stack: externalApiError.stack,
-            },
-            "Error calling CheckoutAction after payment success"
-          );
-          setErrorMessage(
-            "Payment succeeded but checkout failed. Please contact support."
-          );
-          setIsProcessing(false);
-          setPaymentStatus("failed");
-        }
+      if (res.ok) {
+        setPaymentStatus("success");
+        onNext();
+      } else {
+        setErrorMessage(res.message || "Checkout failed");
+        setPaymentStatus("failed");
+        setIsProcessing(false);
       }
     } catch (err: any) {
       logger.error(
@@ -375,6 +420,7 @@ const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
         },
         "Checkout error"
       );
+
       setErrorMessage(err.message || "An unexpected error occurred");
       setIsProcessing(false);
       setPaymentStatus("failed");
@@ -382,13 +428,22 @@ const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
   };
 
   const handleWalletPayment = async () => {
+    if (!services.length) {
+      setErrorMessage("Your cart is empty");
+      return;
+    }
+
     if (!email || !phone || !address || !city || !country) {
       setErrorMessage("Please fill in all billing fields");
       return;
     }
 
-    if (walletBalance <= 0) {
-      setErrorMessage("Insufficient wallet balance");
+    if (walletBalance < totals.total) {
+      setErrorMessage(
+        `Insufficient wallet balance. Required ${gbp(
+          totals.total
+        )}, available ${gbp(walletBalance)}.`
+      );
       return;
     }
 
@@ -396,63 +451,16 @@ const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
     setPaymentStatus("processing");
     setErrorMessage("");
 
-    logger.info("=== Wallet Payment Submitted ===");
-
     try {
-      // Prepare items payload
-      const itemsPayload = services.reduce<
-        {
-          type: string;
-          id: string;
-          quantity: string;
-          meta: { features?: string[]; service_id?: string };
-        }[]
-      >((acc, service) => {
-        const itemId =
-          service.checkoutId ??
-          (service.meta?.service_id !== undefined
-            ? service.meta.service_id
-            : undefined);
+      const itemsPayload = buildItemsPayload();
 
-        if (!itemId) {
-          logger.warn("Skipping checkout item with no id", service);
-          return acc;
-        }
-
-        const meta: { features?: string[]; service_id?: string } = {};
-
-        if (
-          Array.isArray(service.meta?.features) &&
-          service.meta.features.length
-        ) {
-          meta.features = service.meta.features.map((feature: any) =>
-            String(feature)
-          );
-        }
-
-        if (service.meta?.service_id !== undefined) {
-          meta.service_id = String(service.meta.service_id);
-        }
-
-        acc.push({
-          type: service.type,
-          id: String(itemId),
-          quantity: "1",
-          meta,
-        });
-        return acc;
-      }, []);
-
-      logger.info(itemsPayload, "Wallet checkout items payload");
-
-      // Call checkout via wallet
       const res = await checkoutViaWallet({
         company: {
           company_name: companyName,
           company_type: "Private Limited Company",
           business_activity: "business",
-          country: country,
-          city: city,
+          country,
+          city,
           contact_phone: phone,
           contact_email: email,
           registered_address: address,
@@ -460,8 +468,6 @@ const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
         },
         items: itemsPayload,
       });
-
-      logger.info(res, "Wallet checkout response");
 
       if (res.ok) {
         setPaymentStatus("success");
@@ -480,13 +486,12 @@ const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
         },
         "Wallet checkout error"
       );
+
       setErrorMessage(err.message || "An unexpected error occurred");
       setIsProcessingWallet(false);
       setPaymentStatus("failed");
     }
   };
-
-  const canPayViaWallet = walletBalance > 0 && !isLoadingBalance;
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -546,6 +551,7 @@ const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
                     className="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     City
@@ -604,6 +610,7 @@ const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
                     </div>
                   )}
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Phone
@@ -638,7 +645,6 @@ const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
               </div>
             )}
 
-            {/* Wallet Balance Display */}
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -647,6 +653,7 @@ const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
                     Wallet Balance:
                   </span>
                 </div>
+
                 <span className="text-sm font-semibold text-slate-900">
                   {isLoadingBalance ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -655,10 +662,11 @@ const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
                   )}
                 </span>
               </div>
-              {!canPayViaWallet && walletBalance <= 0 && !isLoadingBalance && (
+
+              {!canPayViaWallet && !isLoadingBalance && services.length > 0 && (
                 <p className="text-xs text-slate-500 mt-2">
-                  Insufficient balance. Please add funds to your wallet or use
-                  card payment.
+                  Insufficient balance. Required {gbp(totals.total)}, available{" "}
+                  {gbp(walletBalance)}.
                 </p>
               )}
             </div>
@@ -668,14 +676,15 @@ const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
                 <button
                   onClick={onBack}
                   disabled={isProcessing || isProcessingWallet}
-                  className="rounded-lg border-2 border-slate-300 py-2 px-3  font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors flex-1"
+                  className="rounded-lg border-2 border-slate-300 py-2 px-3 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors flex-1"
                 >
                   ← Back
                 </button>
+
                 <button
                   onClick={handleSubmit}
                   disabled={isProcessing || isProcessingWallet || !stripe}
-                  className="rounded-lg bg-orange-500  font-semibold py-2 px-3 text-white hover:bg-orange-600 disabled:bg-slate-400 flex items-center justify-center gap-2 transition-colors flex-1"
+                  className="rounded-lg bg-orange-500 font-semibold py-2 px-3 text-white hover:bg-orange-600 disabled:bg-slate-400 flex items-center justify-center gap-2 transition-colors flex-1"
                 >
                   {isProcessing ? (
                     <>
@@ -695,7 +704,7 @@ const PaymentForm: React.FC<{ onNext: () => void; onBack: () => void }> = ({
                     !canPayViaWallet ||
                     isLoadingBalance
                   }
-                  className="rounded-lg bg-sky-500 py-2 px-3  font-semibold text-white hover:bg-sky-600 disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors flex-1"
+                  className="rounded-lg bg-sky-500 py-2 px-3 font-semibold text-white hover:bg-sky-600 disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors flex-1"
                 >
                   {isProcessingWallet ? (
                     <>

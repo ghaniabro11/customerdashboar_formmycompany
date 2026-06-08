@@ -1,7 +1,7 @@
 import React from "react";
-import { calc, gbp } from "@/lib/utils";
+import { gbp } from "@/lib/utils";
 import { X } from "lucide-react";
-import { CartLine, CartService } from "@/constants/types";
+import { CartService } from "@/constants/types";
 
 type OrderSummaryProps = {
   companyName: string;
@@ -12,6 +12,15 @@ type OrderSummaryProps = {
   onRemoveService?: (id: string) => void;
 };
 
+const toNumber = (value: number | string | undefined | null): number => {
+  if (value === undefined || value === null) return 0;
+
+  const num =
+    typeof value === "number" ? value : parseFloat(String(value || 0));
+
+  return isNaN(num) ? 0 : num;
+};
+
 const OrderSummary: React.FC<OrderSummaryProps> = ({
   companyName,
   services,
@@ -20,17 +29,39 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
   proceedButtonText = "Proceed to Payment",
   onRemoveService,
 }) => {
-  const fallbackVatRate = 0.2;
+  const subtotal = services.reduce((sum, service) => {
+    return sum + toNumber(service.price);
+  }, 0);
 
-  const cartLines: CartLine[] = services.map((service) => ({
-    ...service,
-    qty: 1,
-  }));
-  const totals = calc(cartLines, fallbackVatRate);
+  const discountTotal = services.reduce((sum, service) => {
+    return sum + toNumber(service.discount);
+  }, 0);
+
+  const vatTotal = services.reduce((sum, service) => {
+    return sum + toNumber(service.vat);
+  }, 0);
+
+  const companyHousingFeeTotal = services.reduce((sum, service) => {
+    if (service.type !== "package") return sum;
+
+    return sum + toNumber(service.companyHousingFee);
+  }, 0);
+
+  const netSubtotal = services.reduce((sum, service) => {
+    const price = toNumber(service.price);
+    const discount = toNumber(service.discount);
+
+    return sum + Math.max(0, price - discount);
+  }, 0);
+
+  const grandTotal =
+    netSubtotal + vatTotal + companyHousingFeeTotal;
 
   return (
     <aside className="sticky top-4 h-fit rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h3 className="text-lg font-bold text-slate-900 mb-4">Order Summary</h3>
+      <h3 className="text-lg font-bold text-slate-900 mb-4">
+        Order Summary
+      </h3>
 
       <div className="mb-4 rounded-lg bg-sky-50 p-3">
         <div className="text-sm text-slate-600">Company Name</div>
@@ -43,32 +74,69 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
         <>
           <div className="space-y-3 mb-4">
             {services.map((service) => {
-              const hasDiscount = typeof service.discount === "number" && service.discount > 0;
-              const netPrice = service.price - (service.discount ?? 0);
+              const price = toNumber(service.price);
+              const discount = toNumber(service.discount);
+              const vat = toNumber(service.vat);
+
+              const companyHousingFee =
+                service.type === "package"
+                  ? toNumber(service.companyHousingFee)
+                  : 0;
+
+              const netPrice = Math.max(0, price - discount);
+
+              const lineTotal =
+                netPrice + vat + companyHousingFee;
 
               return (
                 <div
                   key={service.id}
-                  className="flex items-center justify-between gap-2 group"
+                  className="flex items-start justify-between gap-2 group"
                 >
                   <div className="flex flex-col flex-1">
-                    <span className="text-slate-700 text-sm">{service.title}</span>
-                    {hasDiscount && (
+                    <span className="text-slate-700 text-sm font-medium">
+                      {service.title}
+                    </span>
+
+                    <span className="text-xs text-slate-500 capitalize">
+                      {service.type.replaceAll("_", " ")}
+                    </span>
+
+                    {discount > 0 ? (
+                      <span className="text-xs text-slate-400 line-through">
+                        Price: {gbp(price)}
+                      </span>
+                    ) : (
                       <span className="text-xs text-slate-500">
-                        {gbp(service.price)} − {gbp(service.discount!)} discount
+                        Price: {gbp(price)}
                       </span>
                     )}
-                    {typeof service.vat === "number" && (
+
+                    {discount > 0 && (
                       <span className="text-xs text-slate-500">
-                        VAT included: {gbp(service.vat)}
+                        Discount: -{gbp(discount)}
                       </span>
                     )}
+
+                    {vat > 0 && (
+                      <span className="text-xs text-slate-500">
+                        VAT: {gbp(vat)}
+                      </span>
+                    )}
+
+                    {service.type === "package" &&
+                      companyHousingFee > 0 && (
+                        <span className="text-xs text-slate-500">
+                          Company Housing Fee: {gbp(companyHousingFee)}
+                        </span>
+                      )}
                   </div>
 
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-slate-900 text-sm">
-                      {gbp(netPrice)}
+                      {gbp(lineTotal)}
                     </span>
+
                     {onRemoveService && (
                       <button
                         onClick={() => onRemoveService(service.id)}
@@ -87,26 +155,35 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
           <div className="border-t border-slate-200 pt-3 space-y-2 text-sm">
             <div className="flex justify-between text-slate-600">
               <span>Subtotal</span>
-              <span>{gbp(totals.subtotal)}</span>
+              <span>{gbp(subtotal)}</span>
             </div>
 
-            {totals.discount > 0 && (
+            {discountTotal > 0 && (
               <div className="flex justify-between text-slate-600">
                 <span>Discount</span>
-                <span>-{gbp(totals.discount)}</span>
+                <span>-{gbp(discountTotal)}</span>
               </div>
             )}
 
-            <div className="flex justify-between text-slate-600">
-              <span>VAT</span>
-              <span>{gbp(totals.vat)}</span>
-            </div>
+            {vatTotal > 0 && (
+              <div className="flex justify-between text-slate-600">
+                <span>VAT</span>
+                <span>{gbp(vatTotal)}</span>
+              </div>
+            )}
+
+            {companyHousingFeeTotal > 0 && (
+              <div className="flex justify-between text-slate-600">
+                <span>Company Housing Fee</span>
+                <span>{gbp(companyHousingFeeTotal)}</span>
+              </div>
+            )}
           </div>
 
           <div className="border-t-2 border-slate-900 mt-3 pt-3">
             <div className="flex justify-between text-lg font-bold">
               <span>Total</span>
-              <span>{gbp(totals.total)}</span>
+              <span>{gbp(grandTotal)}</span>
             </div>
           </div>
 

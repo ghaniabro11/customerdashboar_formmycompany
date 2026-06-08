@@ -23,6 +23,7 @@ export interface PackagesHome {
   price: string;
   discount: string;
   vat: string;
+  company_housing_fee?: string; // NEW
   status: string;
   duration: any;
   package_label: any;
@@ -110,6 +111,7 @@ export type CartService = {
   price: Money;
   discount?: Money;
   vat?: Money;
+  companyHousingFee?: Money; // NEW
 };
 export type CartLine = {
   id: string;
@@ -118,6 +120,7 @@ export type CartLine = {
   qty: number;
   discount?: Money;
   vat?: Money;
+  companyHousingFee?: Money; // NEW
 };
 
 export type Step =

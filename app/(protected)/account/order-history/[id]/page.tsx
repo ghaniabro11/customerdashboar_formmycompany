@@ -1,8 +1,14 @@
 // app/account/orders/[id]/page.tsx
+
 import { fetchCustomerOrderHistoryDetail } from "@/apis";
 import logger from "@/lib/logger/logger";
 import React from "react";
+import { DOMAIN_URL, FAVICON_URL, WEBNAME } from "@/constants/url";
+
 export const dynamic = "force-dynamic";
+
+type MoneyValue = string | number | null | undefined;
+
 type OrderHistory = {
   success: boolean;
   order: {
@@ -11,14 +17,15 @@ type OrderHistory = {
     uuid: string;
     customer_id: number;
     status: "pending" | "paid" | "failed" | "cancelled" | string;
-    subtotal: string;
-    discount_total: string;
-    tax_total: string;
-    grand_total: string;
-    currency: string; // e.g. "GBP"
+    subtotal: MoneyValue;
+    discount_total: MoneyValue;
+    tax_total: MoneyValue;
+    company_housing_fee?: MoneyValue;
+    grand_total: MoneyValue;
+    currency: string;
     billing: any;
     meta: any;
-    created_at: string; // "YYYY-MM-DD HH:mm:ss"
+    created_at: string;
     updated_at: string;
   };
   items: Array<{
@@ -29,12 +36,13 @@ type OrderHistory = {
     type: "package" | "addon" | "service_package" | string;
     title: string;
     description: string;
-    unit_price: string;
-    discount: string;
-    vat: string;
+    unit_price: MoneyValue;
+    discount: MoneyValue;
+    vat: MoneyValue;
+    company_housing_fee?: MoneyValue;
     duration: string | null;
     quantity: number;
-    total: string;
+    total: MoneyValue;
     meta: string | Record<string, unknown> | null;
     created_at: string;
     updated_at: string;
@@ -48,6 +56,7 @@ type OrderHistory = {
       price?: string;
       discount?: string;
       vat?: string;
+      company_housing_fee?: string;
       duration?: string | null;
       status?: string;
       package_label?: string | null;
@@ -67,7 +76,7 @@ type OrderHistory = {
     country: string;
     contact_email: string;
     contact_phone: string;
-    status: string; // e.g. "draft"
+    status: string;
     created_at: string;
     updated_at: string;
   } | null;
@@ -77,16 +86,16 @@ type OrderHistory = {
     uuid: string;
     provider: string;
     provider_payment_id: string;
-    amount: string;
+    amount: MoneyValue;
     currency: string;
     status: string;
-    card: {
-      brand: string;
-      exp_month: string;
-      exp_year: string;
-      last4: string;
+    card?: {
+      brand?: string;
+      exp_month?: string;
+      exp_year?: string;
+      last4?: string;
     };
-    billing: {
+    billing?: {
       first_name: string;
       last_name: string | null;
       address: string;
@@ -102,15 +111,28 @@ type OrderHistory = {
   };
 };
 
-// ——— utils ———
-const formatMoney = (value: string | number, currency = "GBP") =>
-  new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(
-    typeof value === "string" ? parseFloat(value) : value
-  );
+const toNumber = (value: MoneyValue): number => {
+  if (value === undefined || value === null || value === "") return 0;
 
-const formatDate = (dateStr: string) => {
-  // input "YYYY-MM-DD HH:mm:ss" -> local readable
-  const d = new Date(dateStr.replace(" ", "T") + "Z"); // treat backend as UTC
+  const num =
+    typeof value === "number" ? value : parseFloat(String(value || 0));
+
+  return isNaN(num) ? 0 : num;
+};
+
+const formatMoney = (value: MoneyValue, currency = "GBP") =>
+  new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: currency || "GBP",
+  }).format(toNumber(value));
+
+const formatDate = (dateStr?: string) => {
+  if (!dateStr) return "-";
+
+  const d = new Date(dateStr.replace(" ", "T") + "Z");
+
+  if (isNaN(d.getTime())) return dateStr;
+
   return d.toLocaleString("en-GB", {
     day: "2-digit",
     month: "short",
@@ -123,6 +145,7 @@ const formatDate = (dateStr: string) => {
 const statusClass = (status: string) => {
   const base =
     "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium";
+
   switch (status) {
     case "paid":
       return `${base} bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200`;
@@ -139,6 +162,7 @@ const statusClass = (status: string) => {
 const validityClass = (v: string) => {
   const base =
     "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium";
+
   switch (v) {
     case "valid":
       return `${base} bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200`;
@@ -154,6 +178,7 @@ const validityClass = (v: string) => {
 const parseMeta = (meta: unknown): Record<string, unknown> => {
   if (!meta) return {};
   if (typeof meta === "object") return meta as Record<string, unknown>;
+
   if (typeof meta === "string") {
     try {
       return JSON.parse(meta);
@@ -161,10 +186,10 @@ const parseMeta = (meta: unknown): Record<string, unknown> => {
       return {};
     }
   }
+
   return {};
 };
 
-// ——— small UI bits ———
 const Card = ({
   children,
   className = "",
@@ -190,13 +215,14 @@ const CardHeader = ({
 );
 
 const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
-  <div className="flex items-baseline justify-between py-1.5">
+  <div className="flex items-baseline justify-between gap-4 py-1.5">
     <span className="text-sm text-slate-500">{label}</span>
-    <span className="text-sm font-medium text-slate-900">{value}</span>
+    <span className="text-sm font-medium text-slate-900 text-right">
+      {value}
+    </span>
   </div>
 );
 
-// ——— item card ———
 function OrderItemCard({
   item,
   currency,
@@ -209,6 +235,15 @@ function OrderItemCard({
     ? (meta as any).features
     : [];
 
+  const type = String(item.type || "").trim().toLowerCase();
+  const isPackage = type === "package";
+
+  const discount = toNumber(item.discount);
+  const vat = toNumber(item.vat);
+  const companyHousingFee = isPackage
+    ? toNumber(item.company_housing_fee)
+    : 0;
+
   return (
     <li className="flex gap-4 border-b border-slate-100 py-4 last:border-b-0">
       <div className="min-w-0 flex-1">
@@ -216,13 +251,16 @@ function OrderItemCard({
           <div className="text-sm font-semibold text-slate-900">
             {item.title}
           </div>
+
           <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-700">
             {item.type.replace("_", " ")}
           </span>
+
           <span className={validityClass(item.validity_status)}>
             {item.validity_status}
           </span>
-          {item.details?.package_label ? (
+
+          {item.details?.package_label && (
             <span
               className="rounded px-2 py-0.5 text-[10px] font-semibold text-white"
               style={{ background: item.details?.primary_color || "#111827" }}
@@ -230,7 +268,7 @@ function OrderItemCard({
             >
               {item.details.package_label}
             </span>
-          ) : null}
+          )}
         </div>
 
         <p className="mt-1 line-clamp-2 text-sm text-slate-600">
@@ -250,23 +288,46 @@ function OrderItemCard({
           </ul>
         )}
 
-        <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+        <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-5">
           <div>
             <span className="text-slate-500">Qty:</span>{" "}
             <span className="font-medium">{item.quantity}</span>
           </div>
+
           <div>
             <span className="text-slate-500">Unit:</span>{" "}
             <span className="font-medium">
               {formatMoney(item.unit_price, currency)}
             </span>
           </div>
-          <div>
-            <span className="text-slate-500">VAT:</span>{" "}
-            <span className="font-medium">
-              {formatMoney(item.vat || "0", currency)}
-            </span>
-          </div>
+
+          {discount > 0 && (
+            <div>
+              <span className="text-slate-500">Discount:</span>{" "}
+              <span className="font-medium">
+                -{formatMoney(discount, currency)}
+              </span>
+            </div>
+          )}
+
+          {vat > 0 && (
+            <div>
+              <span className="text-slate-500">VAT:</span>{" "}
+              <span className="font-medium">
+                {formatMoney(vat, currency)}
+              </span>
+            </div>
+          )}
+
+          {isPackage && companyHousingFee > 0 && (
+            <div>
+              <span className="text-slate-500">Housing Fee:</span>{" "}
+              <span className="font-medium">
+                {formatMoney(companyHousingFee, currency)}
+              </span>
+            </div>
+          )}
+
           {item.duration && (
             <div>
               <span className="text-slate-500">Duration:</span>{" "}
@@ -286,24 +347,27 @@ function OrderItemCard({
   );
 }
 
-import { DOMAIN_URL, FAVICON_URL, WEBNAME } from "@/constants/url";
-
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+
   return {
     title: `Order Details - ${WEBNAME}`,
-    description: "View detailed information about your order, including items, pricing, and company details.",
+    description:
+      "View detailed information about your order, including items, pricing, and company details.",
     alternates: {
-      canonical: `${DOMAIN_URL}/account/order-history/${decodeURIComponent(id)}`,
+      canonical: `${DOMAIN_URL}/account/order-history/${decodeURIComponent(
+        id
+      )}`,
     },
     openGraph: {
       type: "website",
       title: `Order Details - ${WEBNAME}`,
-      description: "View detailed information about your order, including items, pricing, and company details.",
+      description:
+        "View detailed information about your order, including items, pricing, and company details.",
       url: `${DOMAIN_URL}/account/order-history/${decodeURIComponent(id)}`,
       siteName: WEBNAME,
       images: [
@@ -319,7 +383,8 @@ export async function generateMetadata({
     twitter: {
       card: "summary_large_image",
       title: `Order Details - ${WEBNAME}`,
-      description: "View detailed information about your order, including items, pricing, and company details.",
+      description:
+        "View detailed information about your order, including items, pricing, and company details.",
       images: [`${DOMAIN_URL}/hero.png`],
     },
     robots: {
@@ -330,13 +395,13 @@ export async function generateMetadata({
   };
 }
 
-// ——— main page ———
 const OrderHistoryDetail = async ({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) => {
   const { id } = await params;
+
   const orderHistoryDetail = (await fetchCustomerOrderHistoryDetail(
     id
   )) as OrderHistory;
@@ -345,10 +410,10 @@ const OrderHistoryDetail = async ({
 
   const { order, items, company, payment } = orderHistoryDetail;
   const currency = order.currency || "GBP";
+  const companyHousingFeeTotal = toNumber(order.company_housing_fee);
 
   return (
     <div className="mx-auto max-w-5xl p-4 sm:p-6">
-      {/* Header */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-900">
@@ -358,42 +423,46 @@ const OrderHistoryDetail = async ({
             Placed on {formatDate(order.created_at)}
           </p>
         </div>
-         <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-2">
           <span className={statusClass(order.status)}>{order.status}</span>
-          </div>
-         {/* <button
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            // onClick={...} // connect to invoice download if available
-          >
-            Download invoice
-          </button>
-          {order.status === "pending" && (
-            <a
-              href={`/checkout/${order.uuid}`}
-              className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700"
-            >
-              Pay now
-            </a>
-          )}
-        */}
+        </div>
       </div>
 
-      {/* Totals + Company */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="md:col-span-2">
           <CardHeader title="Order summary" />
+
           <div className="p-4">
             <div className="space-y-1.5">
               <Row
                 label="Subtotal"
                 value={formatMoney(order.subtotal, currency)}
               />
+
               <Row
                 label="Discounts"
-                value={formatMoney(order.discount_total, currency)}
+                value={
+                  toNumber(order.discount_total) > 0
+                    ? `-${formatMoney(order.discount_total, currency)}`
+                    : formatMoney(0, currency)
+                }
               />
-              <Row label="Tax" value={formatMoney(order.tax_total, currency)} />
+
+              <Row
+                label="Tax"
+                value={formatMoney(order.tax_total, currency)}
+              />
+
+              {companyHousingFeeTotal > 0 && (
+                <Row
+                  label="Company Housing Fee"
+                  value={formatMoney(companyHousingFeeTotal, currency)}
+                />
+              )}
+
               <div className="my-2 border-t border-slate-200" />
+
               <div className="flex items-baseline justify-between">
                 <span className="text-sm font-semibold text-slate-900">
                   Grand total
@@ -417,6 +486,7 @@ const OrderHistoryDetail = async ({
               ) : null
             }
           />
+
           <div className="p-4 text-sm">
             {company ? (
               <>
@@ -459,10 +529,9 @@ const OrderHistoryDetail = async ({
         </Card>
       </div>
 
-      {/* Payment Section */}
       {payment && (
         <Card className="mt-4">
-          <CardHeader 
+          <CardHeader
             title="Payment Information"
             aside={
               <span className={statusClass(payment.status)}>
@@ -470,15 +539,22 @@ const OrderHistoryDetail = async ({
               </span>
             }
           />
+
           <div className="p-4">
             <div className="grid gap-4 md:grid-cols-2">
-              {/* Payment Details */}
               <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-slate-900">Payment Details</h4>
+                <h4 className="text-sm font-semibold text-slate-900">
+                  Payment Details
+                </h4>
+
                 <div className="space-y-1.5">
                   <Row
                     label="Payment ID"
-                    value={<span className="font-mono text-xs">{payment.provider_payment_id}</span>}
+                    value={
+                      <span className="font-mono text-xs">
+                        {payment.provider_payment_id}
+                      </span>
+                    }
                   />
                   <Row
                     label="Provider"
@@ -501,43 +577,53 @@ const OrderHistoryDetail = async ({
                 </div>
               </div>
 
-              {/* Card Information */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-slate-900">Card Information</h4>
-                <div className="space-y-1.5">
-                  <Row
-                    label="Card"
-                    value={
-                      <div className="flex items-center gap-2">
-                        <span>💳</span>
-                        <span className="capitalize">{payment.card.brand}</span>
-                        <span className="text-slate-500">•••• {payment.card.last4}</span>
-                      </div>
-                    }
-                  />
-                  <Row
-                    label="Expiry"
-                    value={
-                      <span>
-                        {payment.card.exp_month.padStart(2, "0")}/{payment.card.exp_year}
-                      </span>
-                    }
-                  />
+              {payment.card && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-slate-900">
+                    Card Information
+                  </h4>
+
+                  <div className="space-y-1.5">
+                    <Row
+                      label="Card"
+                      value={
+                        <div className="flex items-center gap-2">
+                          <span>💳</span>
+                          <span className="capitalize">
+                            {payment.card.brand || "-"}
+                          </span>
+                          <span className="text-slate-500">
+                            •••• {payment.card.last4 || "----"}
+                          </span>
+                        </div>
+                      }
+                    />
+                    <Row
+                      label="Expiry"
+                      value={
+                        <span>
+                          {(payment.card.exp_month || "").padStart(2, "0")}/
+                          {payment.card.exp_year || "-"}
+                        </span>
+                      }
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Payment Billing Address */}
             {payment.billing && (
               <div className="mt-4 border-t border-slate-100 pt-4">
                 <h4 className="mb-3 text-sm font-semibold text-slate-900">
                   Payment Billing Address
                 </h4>
+
                 <div className="grid gap-2 text-sm sm:grid-cols-2">
                   <div>
                     <span className="text-slate-500">Name:</span>{" "}
                     <span className="font-medium text-slate-900">
-                      {payment.billing.first_name} {payment.billing.last_name || ""}
+                      {payment.billing.first_name}{" "}
+                      {payment.billing.last_name || ""}
                     </span>
                   </div>
                   <div>
@@ -580,9 +666,11 @@ const OrderHistoryDetail = async ({
               </div>
             )}
 
-            {/* Payment Metadata */}
             <div className="mt-4 flex flex-wrap gap-4 border-t border-slate-100 pt-4 text-xs text-slate-500">
-              <div>Payment UUID: <span className="font-mono">{payment.uuid}</span></div>
+              <div>
+                Payment UUID:{" "}
+                <span className="font-mono">{payment.uuid}</span>
+              </div>
               <div>Created: {formatDate(payment.created_at)}</div>
               {payment.updated_at !== payment.created_at && (
                 <div>Updated: {formatDate(payment.updated_at)}</div>
@@ -592,7 +680,6 @@ const OrderHistoryDetail = async ({
         </Card>
       )}
 
-      {/* Items */}
       <Card className="mt-4">
         <CardHeader title="Items" />
         <ul className="divide-y divide-transparent p-4">
@@ -602,7 +689,6 @@ const OrderHistoryDetail = async ({
         </ul>
       </Card>
 
-      {/* Footer meta */}
       <div className="mt-6 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
         <div>
           Order ID: {order.id} • UUID: {order.uuid}
