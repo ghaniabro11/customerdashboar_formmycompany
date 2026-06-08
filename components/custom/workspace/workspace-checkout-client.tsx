@@ -164,14 +164,46 @@ const PaymentForm: React.FC<{
       };
 
       // Prepare payment items
-      const paymentItems: PaymentItem[] = workspaces.map((w: any) => ({
-        id: w.itemId || w.id,
-        price: parseFloat(w.meta?.price || "0"),
-        duration: parseFloat(w.duration || "0"),
-        qty: parseFloat(w.qty || w.quantity || "1"),
-        discount: parseFloat(w.meta?.discount || "0"),
-        vat: parseFloat(w.meta?.vat || "0"),
-      }));
+      const paymentItems: PaymentItem[] = workspaces.map((w: any) => {
+        const unitPrice = parseFloat(w.meta?.price || "0");
+        const duration = parseFloat(w.duration || "1");
+        const qty = parseFloat(w.qty || w.quantity || w.meta?.quantity || "1");
+        const discount = parseFloat(w.meta?.discount || w.discount || "0");
+        const vat = parseFloat(w.meta?.vat || "0");
+      
+        return {
+          id: String(w.itemId || w.id),
+      
+          // Required by PaymentItem
+          type: "workspace",
+      
+          // Pre-multiply by duration because Stripe service calculates by qty
+          price: unitPrice * duration,
+          duration: 1,
+          qty,
+      
+          discount: discount * duration,
+          vat: vat * duration,
+      
+          // Workspace has no company housing fee
+          companyHousingFee: 0,
+        };
+      });
+      
+      logger.info(
+        {
+          paymentItems,
+          expectedStripeTotal: paymentItems.reduce((sum, item) => {
+            const price = Number(item.price || 0);
+            const discount = Number(item.discount || 0);
+            const vat = Number(item.vat || 0);
+            const qty = Number(item.qty || 1);
+      
+            return sum + Math.max(0, price - discount) * qty + vat * qty;
+          }, 0),
+        },
+        "Workspace Stripe payment items"
+      );
 
       // Process payment using the service
       const result = await StripePaymentService.processPayment(
