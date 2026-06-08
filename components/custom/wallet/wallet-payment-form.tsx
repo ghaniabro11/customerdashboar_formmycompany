@@ -28,7 +28,6 @@ import {
 } from "@/lib/stripe-payment.service";
 import { gbp } from "@/lib/utils";
 
-// CRITICAL: Validate that we're using a publishable key, not a secret key
 const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 
 if (!STRIPE_PUBLISHABLE_KEY) {
@@ -147,7 +146,6 @@ const PaymentForm: React.FC<WalletPaymentFormProps> = ({
     setErrorMessage("");
 
     try {
-      // Prepare billing details
       const billingDetails: BillingDetails = {
         first_name: firstName,
         last_name: lastName,
@@ -160,19 +158,28 @@ const PaymentForm: React.FC<WalletPaymentFormProps> = ({
         country: "GB",
       };
 
-      // Prepare payment items (amount in pence for Stripe)
       const paymentItems: PaymentItem[] = [
         {
           id: "wallet-credit",
+          type: "wallet_credit",
           price: creditAmount,
           duration: 1,
           qty: 1,
           discount: 0,
           vat: 0,
+          companyHousingFee: 0,
         },
       ];
 
-      // Process payment using the service
+      logger.info(
+        {
+          paymentItems,
+          expectedStripeTotal: creditAmount,
+          expectedStripeAmountInPence: Math.round(creditAmount * 100),
+        },
+        "Wallet credit Stripe payment items"
+      );
+
       const result = await StripePaymentService.processPayment(
         stripe,
         elements,
@@ -192,6 +199,7 @@ const PaymentForm: React.FC<WalletPaymentFormProps> = ({
           },
           "Payment processing failed"
         );
+
         setErrorMessage(
           result.errorMessage || "Payment failed. Please try again."
         );
@@ -199,7 +207,6 @@ const PaymentForm: React.FC<WalletPaymentFormProps> = ({
         return;
       }
 
-      // Payment succeeded - call wallet credit API
       if (
         result?.paymentIntent?.paymentIntent &&
         result?.paymentIntent?.paymentIntent?.status === "succeeded"
@@ -223,14 +230,14 @@ const PaymentForm: React.FC<WalletPaymentFormProps> = ({
               billing: {
                 first_name: firstName,
                 last_name: lastName,
-                address: address,
-                city: city,
+                address,
+                city,
                 country:
                   result?.paymentIntent?.paymentMethod?.paymentMethod?.card
                     ?.country || "GB",
                 postal_code: postcode,
-                email: email,
-                phone: phone,
+                email,
+                phone,
               },
               currency: "gbp",
               amount: result?.paymentIntent?.paymentIntent?.amount,
@@ -243,16 +250,14 @@ const PaymentForm: React.FC<WalletPaymentFormProps> = ({
                 brand:
                   result?.paymentIntent?.paymentMethod?.paymentMethod?.card
                     ?.brand || "",
-                exp_month:
-                  String(
-                    result?.paymentIntent?.paymentMethod?.paymentMethod?.card
-                      ?.exp_month || ""
-                  ),
-                exp_year:
-                  String(
-                    result?.paymentIntent?.paymentMethod?.paymentMethod?.card
-                      ?.exp_year || ""
-                  ),
+                exp_month: String(
+                  result?.paymentIntent?.paymentMethod?.paymentMethod?.card
+                    ?.exp_month || ""
+                ),
+                exp_year: String(
+                  result?.paymentIntent?.paymentMethod?.paymentMethod?.card
+                    ?.exp_year || ""
+                ),
                 last4:
                   result?.paymentIntent?.paymentMethod?.paymentMethod?.card
                     ?.last4 || "",
@@ -279,6 +284,7 @@ const PaymentForm: React.FC<WalletPaymentFormProps> = ({
             },
             "Error calling addWalletCredit after payment success"
           );
+
           setErrorMessage(
             "Payment succeeded but credit addition failed. Please contact support."
           );
@@ -294,6 +300,7 @@ const PaymentForm: React.FC<WalletPaymentFormProps> = ({
         },
         "Wallet credit payment error"
       );
+
       setErrorMessage(err.message || "An unexpected error occurred");
       setIsProcessing(false);
     }
@@ -322,7 +329,6 @@ const PaymentForm: React.FC<WalletPaymentFormProps> = ({
               </p>
             </div>
 
-            {/* Billing Information */}
             <div className="space-y-4 mb-6">
               <h3 className="font-semibold text-slate-900 text-lg">
                 Billing Information
@@ -342,6 +348,7 @@ const PaymentForm: React.FC<WalletPaymentFormProps> = ({
                     className="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Last Name *
@@ -416,6 +423,7 @@ const PaymentForm: React.FC<WalletPaymentFormProps> = ({
                     className="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Postcode *
@@ -432,7 +440,6 @@ const PaymentForm: React.FC<WalletPaymentFormProps> = ({
               </div>
             </div>
 
-            {/* Payment Details */}
             <div className="border-t border-slate-200 pt-6 space-y-4">
               <h3 className="font-semibold text-slate-900 text-lg">
                 Payment Details
@@ -481,6 +488,7 @@ const PaymentForm: React.FC<WalletPaymentFormProps> = ({
               >
                 Cancel
               </button>
+
               <button
                 type="submit"
                 disabled={isProcessing || !stripe}
@@ -492,9 +500,7 @@ const PaymentForm: React.FC<WalletPaymentFormProps> = ({
                     Processing...
                   </>
                 ) : (
-                  <>
-                    Pay {gbp(creditAmount)}
-                  </>
+                  <>Pay {gbp(creditAmount)}</>
                 )}
               </button>
             </div>
