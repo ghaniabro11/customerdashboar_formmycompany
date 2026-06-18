@@ -143,13 +143,13 @@ const BasketEmptyPage = () => {
 
           <div className="mt-6 flex justify-center">
             <div className="text-lg font-bold text-orange-600">
-              Starts at £54.99 +VAT
+              Starts at £117.48 + VAT
             </div>
           </div>
 
           <div className="mt-8">
             <Link
-              href="/compare-packages"
+              href="https://formmycompany.uk/"
               className="inline-block px-6 py-3 bg-orange-600 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-orange-500 transition duration-300"
             >
               Check Company Packages

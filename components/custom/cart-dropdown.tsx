@@ -150,7 +150,7 @@ const CartDropdown: React.FC<CartDropdownProps> = ({ className }) => {
 
                     const netPrice = Math.max(0, price - discount);
                     const lineTotal = netPrice + vat + companyHousingFee;
-
+                    const discountedPrice = Math.max(0, price - discount);
                     return (
                       <div
                         key={service.id}
@@ -170,19 +170,26 @@ const CartDropdown: React.FC<CartDropdownProps> = ({ className }) => {
                               {formatPrice(lineTotal)}
                             </p>
 
+                            
+
                             {discount > 0 ? (
+                              <>
                                 <p className="text-xs text-gray-400 line-through">
                                   Price: {formatPrice(price)}
                                 </p>
-                              ) : (
-                                <p className="text-xs text-gray-500">
-                                  Price: {formatPrice(price)}
+                                <p className="text-xs text-green-600">
+                                  Price: {formatPrice(discountedPrice)}
                                 </p>
-                              )}
+                              </>
+                            ) : (
+                              <p className="text-xs text-gray-500">
+                                Price: {formatPrice(price)}
+                              </p>
+                            )}
 
                             {discount > 0 && (
                               <p className="text-xs text-gray-500">
-                                Discount: -{formatPrice(discount)}
+                                Discount: - {formatPrice(discount)}
                               </p>
                             )}
 

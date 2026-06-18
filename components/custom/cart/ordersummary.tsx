@@ -103,9 +103,15 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
                     </span>
 
                     {discount > 0 ? (
-                      <span className="text-xs text-slate-400 line-through">
-                        Price: {gbp(price)}
-                      </span>
+                      <>
+                        <span className="text-xs text-slate-400 line-through">
+                          Price: {gbp(price)}
+                        </span>
+
+                        <span className="text-xs font-medium text-green-600">
+                          Price: {gbp(netPrice)}
+                        </span>
+                      </>
                     ) : (
                       <span className="text-xs text-slate-500">
                         Price: {gbp(price)}
