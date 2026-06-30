@@ -99,8 +99,8 @@ const CompanyDetailComponent = ({
       isMembersComplete &&
       isDocumentsComplete &&
       isProofComplete &&
-      isPSCComplete &&
-      isSecretariesComplete;
+      isPSCComplete;
+      //isSecretariesComplete;
 
 
     const [submitLoading, setSubmitLoading] = useState(false);
